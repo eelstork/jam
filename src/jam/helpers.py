@@ -55,6 +55,14 @@ def clear_breadcrumb(repo_path):
         os.remove(path)
 
 
+def git_repo_root():
+    """Return the root of the current git repo, or None."""
+    result = run("git rev-parse --show-toplevel")
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
+
+
 def fail(msg):
     click.echo(f"Error: {msg}", err=True)
     sys.exit(1)
