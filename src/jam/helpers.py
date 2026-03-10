@@ -52,11 +52,32 @@ def fail(msg):
     sys.exit(1)
 
 
+def _config_dir():
+    return os.path.join(os.path.expanduser("~"), ".config", "jam")
+
+
+def _root_file():
+    return os.path.join(_config_dir(), "root")
+
+
 def get_jam_home():
     jam_home = os.environ.get("JAM_HOME")
     if not jam_home:
-        fail("JAM_HOME is not set. Set it to your repos directory.")
+        root_file = _root_file()
+        if os.path.exists(root_file):
+            with open(root_file) as f:
+                jam_home = f.read().strip()
+    if not jam_home:
+        fail("JAM_HOME is not set. Run jam set-root PATH or set the JAM_HOME env var.")
     return jam_home
+
+
+def save_root(path):
+    """Persist the jam root to ~/.config/jam/root."""
+    config = _config_dir()
+    os.makedirs(config, exist_ok=True)
+    with open(_root_file(), "w") as f:
+        f.write(path + "\n")
 
 
 def get_gh_user():
