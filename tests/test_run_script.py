@@ -1,0 +1,141 @@
+import os
+import sys
+from subprocess import CompletedProcess
+from unittest.mock import patch
+
+from click.testing import CliRunner
+
+from jam.cli import main
+from jam.commands.run_script import _find_script, _build_argv
+
+
+def ok(stdout=""):
+    return CompletedProcess(args=[], returncode=0, stdout=stdout, stderr="")
+
+
+# --- _find_script precedence ---
+
+
+def test_find_script_sh_preferred_on_unix(tmp_path):
+    (tmp_path / "deploy.sh").write_text("#!/bin/bash")
+    (tmp_path / "deploy.py").write_text("pass")
+    with patch("jam.commands.run_script._is_windows", return_value=False):
+        result = _find_script(str(tmp_path), "deploy")
+    assert result.endswith("deploy.sh")
+
+
+def test_find_script_py_when_no_sh_on_unix(tmp_path):
+    (tmp_path / "deploy.py").write_text("pass")
+    with patch("jam.commands.run_script._is_windows", return_value=False):
+        result = _find_script(str(tmp_path), "deploy")
+    assert result.endswith("deploy.py")
+
+
+def test_find_script_ps1_last_resort_on_unix(tmp_path):
+    (tmp_path / "deploy.ps1").write_text("Write-Host hi")
+    with patch("jam.commands.run_script._is_windows", return_value=False):
+        result = _find_script(str(tmp_path), "deploy")
+    assert result.endswith("deploy.ps1")
+
+
+def test_find_script_ps1_preferred_on_windows(tmp_path):
+    (tmp_path / "deploy.ps1").write_text("Write-Host hi")
+    (tmp_path / "deploy.py").write_text("pass")
+    with patch("jam.commands.run_script._is_windows", return_value=True):
+        result = _find_script(str(tmp_path), "deploy")
+    assert result.endswith("deploy.ps1")
+
+
+def test_find_script_py_when_no_ps1_on_windows(tmp_path):
+    (tmp_path / "deploy.py").write_text("pass")
+    with patch("jam.commands.run_script._is_windows", return_value=True):
+        result = _find_script(str(tmp_path), "deploy")
+    assert result.endswith("deploy.py")
+
+
+def test_find_script_sh_last_resort_on_windows(tmp_path):
+    (tmp_path / "deploy.sh").write_text("#!/bin/bash")
+    with patch("jam.commands.run_script._is_windows", return_value=True):
+        result = _find_script(str(tmp_path), "deploy")
+    assert result.endswith("deploy.sh")
+
+
+def test_find_script_none_when_missing(tmp_path):
+    with patch("jam.commands.run_script._is_windows", return_value=False):
+        result = _find_script(str(tmp_path), "deploy")
+    assert result is None
+
+
+# --- _build_argv ---
+
+
+def test_build_argv_py():
+    argv = _build_argv("/repo/test.py")
+    assert argv == [sys.executable, "/repo/test.py"]
+
+
+def test_build_argv_sh():
+    argv = _build_argv("/repo/test.sh")
+    assert argv == ["bash", "/repo/test.sh"]
+
+
+def test_build_argv_ps1():
+    argv = _build_argv("/repo/test.ps1")
+    assert argv == ["powershell", "-ExecutionPolicy", "Bypass", "-File", "/repo/test.ps1"]
+
+
+# --- integration via CLI ---
+
+
+@patch("subprocess.run")
+@patch("jam.helpers.run")
+def test_unknown_cmd_runs_script(mock_helpers_run, mock_subprocess, tmp_path):
+    (tmp_path / "deploy.py").write_text("print('deploying')")
+
+    # git rev-parse --show-toplevel returns the tmp_path
+    mock_helpers_run.return_value = ok(str(tmp_path))
+    mock_subprocess.return_value = CompletedProcess(args=[], returncode=0)
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["deploy"])
+    # sys.exit(0) raises SystemExit which Click catches
+    assert result.exit_code == 0
+    mock_subprocess.assert_called_once()
+    call_args = mock_subprocess.call_args
+    assert call_args[0][0] == [sys.executable, os.path.join(str(tmp_path), "deploy.py")]
+    assert call_args[1]["cwd"] == str(tmp_path)
+
+
+@patch("subprocess.run")
+@patch("jam.helpers.run")
+def test_script_receives_extra_args(mock_helpers_run, mock_subprocess, tmp_path):
+    (tmp_path / "build.sh").write_text("#!/bin/bash")
+
+    mock_helpers_run.return_value = ok(str(tmp_path))
+    mock_subprocess.return_value = CompletedProcess(args=[], returncode=0)
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["build", "--release", "v2"])
+    assert result.exit_code == 0
+    call_args = mock_subprocess.call_args
+    assert call_args[0][0] == ["bash", os.path.join(str(tmp_path), "build.sh"),
+                                "--release", "v2"]
+
+
+@patch("jam.helpers.run")
+def test_unknown_cmd_no_script_fails(mock_helpers_run, tmp_path):
+    mock_helpers_run.return_value = ok(str(tmp_path))
+    runner = CliRunner()
+    result = runner.invoke(main, ["nonexistent"])
+    assert result.exit_code != 0
+
+
+def test_builtin_takes_precedence_over_script(tmp_path):
+    """Even if root.py exists, `jam root` runs the built-in."""
+    (tmp_path / "root.py").write_text("print('nope')")
+
+    with patch("jam.helpers.run", return_value=ok(str(tmp_path))):
+        runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+        result = runner.invoke(main, ["root"])
+    assert result.exit_code == 0
+    assert "/tmp/dev" in result.output

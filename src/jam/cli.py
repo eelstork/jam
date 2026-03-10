@@ -2,6 +2,7 @@ import sys
 
 import click
 
+from jam import helpers
 from jam.commands.clone import clone
 from jam.commands.delete import delete
 from jam.commands.down import down
@@ -32,7 +33,28 @@ COMMANDS = [
 ]
 
 
-@click.group(invoke_without_command=True)
+class _JamGroup(click.Group):
+    """Click group that falls back to repo-root scripts."""
+
+    def get_command(self, ctx, cmd_name):
+        # Built-in commands take priority.
+        cmd = super().get_command(ctx, cmd_name)
+        if cmd is not None:
+            return cmd
+
+        # Look for a script at the git repo root.
+        from jam.commands.run_script import _find_script, make_command
+
+        repo_root = helpers.git_repo_root()
+        if repo_root is None:
+            return None
+        script = _find_script(repo_root, cmd_name)
+        if script is None:
+            return None
+        return make_command(cmd_name, script, repo_root)
+
+
+@click.group(cls=_JamGroup, invoke_without_command=True)
 @click.pass_context
 def main(ctx):
     """jam - fast and safe git repos"""
