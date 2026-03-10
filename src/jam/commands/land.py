@@ -86,7 +86,8 @@ def _land_all(fast):
             targets.append((entry, repo_path, branch, commits))
 
     if not targets:
-        helpers.fail("No repos with branches to land.")
+        click.echo(f"{helpers.jam_emoji()} No repos with branches to land.")
+        return
 
     if not fast:
         for repo_name, _, branch, commits in targets:
@@ -117,7 +118,8 @@ def _land_one(name, fast):
 
     info = _get_landable(repo_path)
     if not info:
-        helpers.fail("No branches to land.")
+        click.echo(f"{helpers.jam_emoji()} No branches to land.")
+        return
 
     branch, commits = info
     local_branch = branch.replace("origin/", "", 1)
