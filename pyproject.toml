@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jam"
+version = "0.1.0"
+description = "Fast and safe git repos"
+requires-python = ">=3.10"
+license = "MIT"
+dependencies = [
+    "click>=8.0",
+]
+
+[project.scripts]
+jam = "jam.cli:main"

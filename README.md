@@ -1,35 +1,39 @@
-# Fastr - fast and safe git repos
+# jam
 
-I get you, I get you. Therefore we have a specification for a reasoned create-repo command, and more generally a reasoned API.
+Git without the ceremony. Create repos, push code, land branches -- all in a few keystrokes.
 
-First we need to step back from the file system. We are going to assume a target directory for all repos. So this needs to be set in, I guess... idk, an environment variable maybe?
+Jam keeps all your repos under one roof (`JAM_HOME`) and talks to GitHub via `gh`. No config files, no boilerplate. Just the stuff you actually do, made fast.
 
-```
-new NAME "DESCRIPTION"
-```
+## Setup
 
-This is the action, right? It's going to check for "dev-home" in env and if does not exist, goodbye.
-Then it's going to check whether repo with this name exists, and if not, goodbye.
-Then it's going to create the repo via gh, create the readme from description (not optional. many operations fail with a content-less repo), and push, right?
-
-Then we have a key action that's much easier than github template repos
+Requires Python 3.10+, [git](https://git-scm.com), and [gh](https://cli.github.com) (authenticated).
 
 ```
-clone NAME as NAME "RE-DESCRIPTION"
+pip install -e .
 ```
 
-I think it's obvious what this does, correct?
-```
-list => i believe we will need this.
-```
-merge-pull => this is an operation that can help quickly pulling from a fresh branch and merging code changes
-```
-up NAME "commit-comment"
-```
-add all, commit with message, push
+Set `JAM_HOME` to where you keep your repos:
 
 ```
-down
+export JAM_HOME=~/dev
 ```
 
-I see. So this is the boogie, right?
+## Commands
+
+**`jam new NAME ["DESCRIPTION"]`** -- spin up a repo on GitHub, clone it locally, push a readme. Add `--public` if you're feeling brave. ([new.py](src/jam/commands/new.py))
+
+**`jam clone SOURCE TARGET ["DESCRIPTION"]`** -- copy a repo as a brand new repo. Fresh git history, new GitHub remote. Great for templates. ([clone.py](src/jam/commands/clone.py))
+
+**`jam list`** -- see what you've got. `--info` pulls the first line from each readme. ([list.py](src/jam/commands/list.py))
+
+**`jam up "MESSAGE"`** -- add everything, commit, push. One shot. `--name REPO` to target a specific repo, `--force` if you need it. ([up.py](src/jam/commands/up.py))
+
+**`jam down [NAME]`** -- pull latest. `--force` throws away local changes first. ([down.py](src/jam/commands/down.py))
+
+**`jam land [NAME]`** -- merge the most recent branch into main. Shows the last 3 commits and asks before doing anything. `--all` lands across all repos at once. `--fast` skips confirmation. ([land.py](src/jam/commands/land.py))
+
+**`jam infuse SOURCE --into TARGET`** -- drop files from one repo into another, auto-commits the result. Bails if anything would overwrite. Also works with a subpath: `jam infuse snippets --into myapp/vendor/ext`. Or just `jam infuse SOURCE` from inside the target repo. ([infuse.py](src/jam/commands/infuse.py))
+
+**`jam undo [NAME]`** -- reverse the last jam command on a repo. Works with `up`, `down`, `land`, and `infuse`. ([undo.py](src/jam/commands/undo.py))
+
+**`jam delete NAME`** -- remove a repo locally. Tags the remote for later cleanup. Re-clone from GitHub to recover. ([delete.py](src/jam/commands/delete.py))
