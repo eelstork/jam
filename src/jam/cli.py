@@ -307,20 +307,32 @@ def infuse(args):
 
     Usage:
         jam infuse NAME into TARGET
+        jam infuse NAME into TARGET/PATH
         jam infuse SRC              (when inside a repo)
     """
     import shutil
 
     jam_home = get_jam_home()
 
+    dest_subpath = None
+
     if len(args) == 3 and args[1] == "into":
-        src_name, _, target_name = args
+        src_name, _, target_spec = args
         src_path = os.path.join(jam_home, src_name)
-        target_path = os.path.join(jam_home, target_name)
         if not os.path.isdir(src_path):
             fail(f"Repo {src_name} not found at {src_path}")
+        # TARGET or TARGET/PATH
+        parts = target_spec.split("/", 1)
+        target_name = parts[0]
+        target_path = os.path.join(jam_home, target_name)
         if not os.path.isdir(target_path):
             fail(f"Repo {target_name} not found at {target_path}")
+        if len(parts) == 2:
+            dest_subpath = parts[1]
+            full_dest = os.path.join(target_path, dest_subpath)
+            if os.path.exists(full_dest):
+                fail(f"Path {target_spec} already exists.")
+            target_path = full_dest
     elif len(args) == 1:
         src_name = args[0]
         src_path = os.path.join(jam_home, src_name)
@@ -349,7 +361,8 @@ def infuse(args):
         click.echo("Conflict — these files already exist in target:")
         for c in conflicts:
             click.echo(f"  {c}")
-        fail(f"Cannot infuse {src_name} into {target_name} (conflicts).")
+        dest_label = f"{target_name}/{dest_subpath}" if dest_subpath else target_name
+        fail(f"Cannot infuse {src_name} into {dest_label} (conflicts).")
 
     if not to_copy:
         click.echo("Nothing to infuse.")
@@ -359,4 +372,5 @@ def infuse(args):
         os.makedirs(os.path.dirname(dst_file), exist_ok=True)
         shutil.copy2(src_file, dst_file)
 
-    click.echo(f"Infused {len(to_copy)} file{'s' if len(to_copy) != 1 else ''} from {src_name} into {target_name}.")
+    dest_label = f"{target_name}/{dest_subpath}" if dest_subpath else target_name
+    click.echo(f"Infused {len(to_copy)} file{'s' if len(to_copy) != 1 else ''} from {src_name} into {dest_label}.")
