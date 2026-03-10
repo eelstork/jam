@@ -41,3 +41,9 @@ Or set the `JAM_HOME` environment variable if you prefer.
 **`jam root`** -- print the current jam root directory. ([root.py](src/jam/commands/root.py))
 
 **`jam set-root PATH`** -- set the jam root directory. Writes to `~/.config/jam/root`. The `JAM_HOME` env var takes priority if set. ([set_root.py](src/jam/commands/set_root.py))
+
+## Command passthrough
+
+Any command that isn't built-in gets routed to a script at the repo root. Drop a `deploy.sh`, `test.py`, or `build.ps1` next to your `.git` and run it with `jam deploy`, `jam test`, `jam build`. Extra arguments are forwarded: `jam build --release v2` runs `bash build.sh --release v2`.
+
+Platform-aware: `.sh` is preferred on Linux/Mac, `.ps1` on Windows, `.py` everywhere. Built-in commands always take priority.
