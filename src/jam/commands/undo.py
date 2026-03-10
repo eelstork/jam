@@ -11,7 +11,7 @@ def undo(name):
 
     crumb = helpers.load_breadcrumb(repo_path)
     if not crumb:
-        click.echo(f"{helpers.jam_emoji()} Nothing to undo.")
+        click.echo(f"Nothing to undo {helpers.jam_emoji()}")
         return
 
     action = crumb["action"]
