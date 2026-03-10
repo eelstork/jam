@@ -345,3 +345,40 @@ def test_infuse_src_from_cwd(tmp_path, monkeypatch):
     assert result.exit_code == 0
     assert "Infused 1 file" in result.output
     assert (target / "data.txt").read_text() == "data"
+
+
+def test_infuse_into_subpath(tmp_path):
+    src = tmp_path / "snippets"
+    src.mkdir()
+    (src / ".git").mkdir()
+    (src / "util.py").write_text("# util")
+    (src / "sub").mkdir()
+    (src / "sub" / "deep.py").write_text("# deep")
+
+    target = tmp_path / "myapp"
+    target.mkdir()
+    (target / ".git").mkdir()
+
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    result = runner.invoke(main, ["infuse", "snippets", "into", "myapp/vendor/ext"])
+    assert result.exit_code == 0
+    assert "Infused 2 files from snippets into myapp/vendor/ext" in result.output
+    assert (target / "vendor" / "ext" / "util.py").read_text() == "# util"
+    assert (target / "vendor" / "ext" / "sub" / "deep.py").read_text() == "# deep"
+
+
+def test_infuse_into_subpath_exists(tmp_path):
+    src = tmp_path / "snippets"
+    src.mkdir()
+    (src / ".git").mkdir()
+    (src / "util.py").write_text("# util")
+
+    target = tmp_path / "myapp"
+    target.mkdir()
+    (target / ".git").mkdir()
+    (target / "lib").mkdir()
+
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    result = runner.invoke(main, ["infuse", "snippets", "into", "myapp/lib"])
+    assert result.exit_code != 0
+    assert "already exists" in result.output
