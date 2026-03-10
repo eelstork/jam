@@ -210,3 +210,73 @@ def test_clone_fails_when_target_exists(mock_isdir, mock_run):
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["clone", "source", "target"])
     assert result.exit_code != 0
+
+
+# --- land ---
+
+
+BRANCHES_OUTPUT = "origin/feat-branch\norigin/main\n"
+COMMITS_OUTPUT = "abc1234 first commit\ndef5678 second commit\nghi9012 third commit\njkl3456 fourth commit\n"
+
+
+@patch("jam.cli.run")
+@patch("os.path.isdir", return_value=True)
+def test_land_fast(mock_isdir, mock_run):
+    mock_run.side_effect = [
+        ok(),                   # git fetch
+        ok(BRANCHES_OUTPUT),    # git for-each-ref
+        ok(COMMITS_OUTPUT),     # git log
+        ok(),                   # git checkout main
+        ok(),                   # git merge
+        ok(),                   # git push
+        ok(),                   # git branch -d
+        ok(),                   # git push origin --delete
+    ]
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["land", "--fast", "myrepo"])
+    assert result.exit_code == 0
+    assert "Landed 4 commits from feat-branch" in result.output
+
+
+@patch("jam.cli.run")
+@patch("os.path.isdir", return_value=True)
+def test_land_shows_3_commits_by_default(mock_isdir, mock_run):
+    mock_run.side_effect = [
+        ok(),                   # git fetch
+        ok(BRANCHES_OUTPUT),    # git for-each-ref
+        ok(COMMITS_OUTPUT),     # git log
+    ]
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["land", "myrepo"], input="n\n")
+    assert "first commit" in result.output
+    assert "second commit" in result.output
+    assert "third commit" in result.output
+    assert "fourth commit" not in result.output
+    assert "... and 1 more" in result.output
+
+
+@patch("jam.cli.run")
+@patch("os.path.isdir", return_value=True)
+def test_land_all_shows_all_commits(mock_isdir, mock_run):
+    mock_run.side_effect = [
+        ok(),                   # git fetch
+        ok(BRANCHES_OUTPUT),    # git for-each-ref
+        ok(COMMITS_OUTPUT),     # git log
+    ]
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["land", "--all", "myrepo"], input="n\n")
+    assert "first commit" in result.output
+    assert "fourth commit" in result.output
+    assert "... and" not in result.output
+
+
+@patch("jam.cli.run")
+@patch("os.path.isdir", return_value=True)
+def test_land_no_branches(mock_isdir, mock_run):
+    mock_run.side_effect = [
+        ok(),                   # git fetch
+        ok("origin/main\n"),    # git for-each-ref (only main)
+    ]
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["land", "myrepo"])
+    assert result.exit_code != 0
