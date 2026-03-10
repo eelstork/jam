@@ -9,8 +9,9 @@ from jam import helpers
 @click.command()
 def update():
     """Update jam to the latest version."""
-    # Trace back from src/jam/commands/update.py -> repo root
-    jam_repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    # Trace back from src/jam/commands/update.py -> repo root (4 levels)
+    here = os.path.abspath(__file__)
+    jam_repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(here))))
 
     if not os.path.isdir(os.path.join(jam_repo, ".git")):
         helpers.fail(
