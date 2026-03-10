@@ -10,11 +10,13 @@ Install via `python install.py`, or `pip install -e .` if you prefer the standar
 
 ## Setup
 
-Set `JAM_HOME` to where you keep your repos:
+Point jam at your repos directory:
 
 ```
-export JAM_HOME=~/dev
+jam set-root ~/dev
 ```
+
+Or set the `JAM_HOME` environment variable if you prefer.
 
 ## Commands
 
@@ -35,3 +37,7 @@ export JAM_HOME=~/dev
 **`jam undo [NAME]`** -- reverse the last jam command on a repo. Works with `up`, `down`, `land`, and `infuse`. ([undo.py](src/jam/commands/undo.py))
 
 **`jam delete NAME`** -- remove a repo locally. Tags the remote for later cleanup. Re-clone from GitHub to recover. ([delete.py](src/jam/commands/delete.py))
+
+**`jam root`** -- print the current jam root directory. ([root.py](src/jam/commands/root.py))
+
+**`jam set-root PATH`** -- set the jam root directory. Writes to `~/.config/jam/root`. The `JAM_HOME` env var takes priority if set. ([set_root.py](src/jam/commands/set_root.py))
