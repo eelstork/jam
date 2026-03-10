@@ -62,6 +62,9 @@ def land(name, show_all, fast):
             return
 
     helpers.run("git checkout main", cwd=repo_path)
+
+    pre_head = helpers.get_head(repo_path)
+
     result = helpers.run(f"git merge {branch}", cwd=repo_path)
     if result.returncode != 0:
         helpers.fail(f"Merge failed: {result.stderr.strip()}")
@@ -70,7 +73,5 @@ def land(name, show_all, fast):
     if result.returncode != 0:
         helpers.fail(f"git push failed: {result.stderr.strip()}")
 
-    helpers.run(f"git branch -d {local_branch}", cwd=repo_path)
-    helpers.run(f"git push origin --delete {local_branch}", cwd=repo_path)
-
+    helpers.save_breadcrumb(repo_path, "land", pre_head=pre_head)
     click.echo(f"Landed {n} commit{'s' if n != 1 else ''} from {local_branch}.")

@@ -64,4 +64,20 @@ def infuse(source, target):
         shutil.copy2(src_file, dst_file)
 
     dest_label = f"{target_name}/{dest_subpath}" if dest_subpath else target_name
-    click.echo(f"Infused {len(to_copy)} file{'s' if len(to_copy) != 1 else ''} from {source} into {dest_label}.")
+
+    # Resolve the git root for the target repo (not the subpath)
+    if target:
+        parts = target.split("/", 1)
+        git_root = os.path.join(jam_home, parts[0])
+    else:
+        git_root = target_path
+
+    pre_head = helpers.get_head(git_root)
+
+    helpers.run("git add -A", cwd=git_root)
+    helpers.run(f'git commit -m "infuse {source}"', cwd=git_root)
+
+    helpers.save_breadcrumb(git_root, "infuse", pre_head=pre_head)
+
+    count = len(to_copy)
+    click.echo(f"Infused {count} file{'s' if count != 1 else ''} from {source} into {dest_label}.")
