@@ -138,6 +138,42 @@ def test_down_without_name_uses_cwd(mock_cwd, mock_run):
     assert result.exit_code == 0
 
 
+# --- list ---
+
+
+def test_list_repos(tmp_path):
+    repo = tmp_path / "myrepo" / ".git"
+    repo.mkdir(parents=True)
+    notrepo = tmp_path / "notarepo"
+    notrepo.mkdir()
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    result = runner.invoke(main, ["list"])
+    assert result.exit_code == 0
+    assert "myrepo" in result.output
+    assert "notarepo" not in result.output
+
+
+def test_list_with_info(tmp_path):
+    repo = tmp_path / "eliz-ai" / ".git"
+    repo.mkdir(parents=True)
+    readme = tmp_path / "eliz-ai" / "README.md"
+    readme.write_text("# eliz-ai\n\none stop psy for cogs on the edge\n")
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    result = runner.invoke(main, ["list", "--info"])
+    assert result.exit_code == 0
+    assert "eliz-ai \u2014 one stop psy for cogs on the edge" in result.output
+
+
+def test_list_info_no_readme(tmp_path):
+    repo = tmp_path / "bare" / ".git"
+    repo.mkdir(parents=True)
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    result = runner.invoke(main, ["list", "--info"])
+    assert result.exit_code == 0
+    assert "bare" in result.output
+    assert "\u2014" not in result.output
+
+
 # --- clone ---
 
 
