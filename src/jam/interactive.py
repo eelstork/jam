@@ -4,20 +4,36 @@ Uses raw ANSI escape codes and tty input. No curses, no external libs.
 """
 
 import sys
-import tty
-import termios
+
+_WINDOWS = sys.platform == "win32"
+
+if _WINDOWS:
+    import msvcrt
+else:
+    import tty
+    import termios
 
 
 def _read_key(fd):
     """Read a single keypress, handling arrow key escape sequences."""
-    ch = sys.stdin.read(1)
-    if ch == "\x1b":
-        seq = sys.stdin.read(2)
-        if seq == "[A":
-            return "up"
-        if seq == "[B":
-            return "down"
-        return "esc"
+    if _WINDOWS:
+        ch = msvcrt.getwch()
+        if ch in ("\x00", "\xe0"):  # special key prefix
+            code = msvcrt.getwch()
+            if code == "H":
+                return "up"
+            if code == "P":
+                return "down"
+            return ch
+    else:
+        ch = sys.stdin.read(1)
+        if ch == "\x1b":
+            seq = sys.stdin.read(2)
+            if seq == "[A":
+                return "up"
+            if seq == "[B":
+                return "down"
+            return "esc"
     if ch in ("\r", "\n"):
         return "enter"
     if ch == "\x03":
@@ -47,11 +63,16 @@ def pick(items, header=None):
             normalized.append((item[0], item[1] if len(item) > 1 else ""))
 
     cursor = 0
-    fd = sys.stdin.fileno()
-    old_settings = termios.tcgetattr(fd)
+
+    if not _WINDOWS:
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+    else:
+        fd = None
 
     try:
-        tty.setraw(fd)
+        if not _WINDOWS:
+            tty.setraw(fd)
         # Reserve space so first _render can move up safely
         total_lines = len(normalized) + (1 if header else 0)
         sys.stdout.write("\r\n" * total_lines)
@@ -75,7 +96,8 @@ def pick(items, header=None):
 
             _render(normalized, cursor, header)
     finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        if not _WINDOWS:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 
 def _render(items, cursor, header):
