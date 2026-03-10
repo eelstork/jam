@@ -1,4 +1,4 @@
-# Fastr - fast and safe git repos
+# jam - fast and safe git repos
 
 I get you, I get you. Therefore we have a specification for a reasoned create-repo command, and more generally a reasoned API.
 
