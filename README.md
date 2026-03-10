@@ -26,12 +26,12 @@ export JAM_HOME=~/dev
 
 **`jam list`** -- see what you've got. `--info` pulls the first line from each readme.
 
-**`jam up [NAME] "MESSAGE"`** -- add everything, commit, push. One shot. `--force` if you need it.
+**`jam up "MESSAGE"`** -- add everything, commit, push. One shot. `--name REPO` to target a specific repo, `--force` if you need it.
 
 **`jam down [NAME]`** -- pull latest. `--force` throws away local changes first.
 
 **`jam land [NAME]`** -- merge the most recent branch into main, clean up after. Shows the last 3 commits and asks before doing anything. `--all` shows every commit, `--fast` just lands it silently.
 
-**`jam infuse NAME into TARGET`** -- drop files from one repo into another. Bails if anything would overwrite. Also works with a subpath: `jam infuse snippets into myapp/vendor/ext`. Or just `jam infuse NAME` from inside the target repo.
+**`jam infuse SOURCE --into TARGET`** -- drop files from one repo into another. Bails if anything would overwrite. Also works with a subpath: `jam infuse snippets --into myapp/vendor/ext`. Or just `jam infuse SOURCE` from inside the target repo.
 
 **`jam delete NAME`** -- remove a repo locally and on GitHub. Asks twice because it should.
