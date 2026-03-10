@@ -84,7 +84,7 @@ def test_build_argv_ps1():
     assert argv == ["powershell", "-ExecutionPolicy", "Bypass", "-File", "/repo/test.ps1"]
 
 
-# --- integration via CLI ---
+# --- integration: jam CMD (current repo) ---
 
 
 @patch("subprocess.run")
@@ -92,13 +92,11 @@ def test_build_argv_ps1():
 def test_unknown_cmd_runs_script(mock_helpers_run, mock_subprocess, tmp_path):
     (tmp_path / "deploy.py").write_text("print('deploying')")
 
-    # git rev-parse --show-toplevel returns the tmp_path
     mock_helpers_run.return_value = ok(str(tmp_path))
     mock_subprocess.return_value = CompletedProcess(args=[], returncode=0)
 
     runner = CliRunner()
     result = runner.invoke(main, ["deploy"])
-    # sys.exit(0) raises SystemExit which Click catches
     assert result.exit_code == 0
     mock_subprocess.assert_called_once()
     call_args = mock_subprocess.call_args
@@ -139,3 +137,72 @@ def test_builtin_takes_precedence_over_script(tmp_path):
         result = runner.invoke(main, ["root"])
     assert result.exit_code == 0
     assert "/tmp/dev" in result.output
+
+
+# --- integration: jam CMD REPO (named repo) ---
+
+
+@patch("subprocess.run")
+def test_cmd_with_repo_name(mock_subprocess, tmp_path):
+    """jam deploy myrepo -> runs myrepo/deploy.sh"""
+    repo = tmp_path / "myrepo"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+    (repo / "deploy.sh").write_text("#!/bin/bash\necho deploying")
+
+    mock_subprocess.return_value = CompletedProcess(args=[], returncode=0)
+
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    result = runner.invoke(main, ["deploy", "myrepo"])
+    assert result.exit_code == 0
+    call_args = mock_subprocess.call_args
+    assert call_args[0][0] == ["bash", os.path.join(str(repo), "deploy.sh")]
+    assert call_args[1]["cwd"] == str(repo)
+
+
+@patch("subprocess.run")
+def test_cmd_with_repo_name_and_args(mock_subprocess, tmp_path):
+    """jam build myrepo --release -> runs myrepo/build.py --release"""
+    repo = tmp_path / "myrepo"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+    (repo / "build.py").write_text("pass")
+
+    mock_subprocess.return_value = CompletedProcess(args=[], returncode=0)
+
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    result = runner.invoke(main, ["build", "myrepo", "--release"])
+    assert result.exit_code == 0
+    call_args = mock_subprocess.call_args
+    assert call_args[0][0] == [sys.executable, os.path.join(str(repo), "build.py"),
+                                "--release"]
+
+
+def test_cmd_with_repo_name_no_script(tmp_path):
+    """jam deploy myrepo -> error if myrepo has no deploy script."""
+    repo = tmp_path / "myrepo"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    result = runner.invoke(main, ["deploy", "myrepo"])
+    assert result.exit_code != 0
+    assert "No script" in result.output or "No script" in (result.stderr or "")
+
+
+@patch("subprocess.run")
+@patch("jam.helpers.run")
+def test_non_repo_arg_treated_as_script_arg(mock_helpers_run, mock_subprocess, tmp_path):
+    """jam build notarepo -> 'notarepo' is not a repo, passed as arg to script."""
+    (tmp_path / "build.sh").write_text("#!/bin/bash")
+
+    mock_helpers_run.return_value = ok(str(tmp_path))
+    mock_subprocess.return_value = CompletedProcess(args=[], returncode=0)
+
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["build", "notarepo"])
+    assert result.exit_code == 0
+    call_args = mock_subprocess.call_args
+    # "notarepo" should be passed as an arg to the script, not used as repo
+    assert call_args[0][0] == ["bash", os.path.join(str(tmp_path), "build.sh"),
+                                "notarepo"]
