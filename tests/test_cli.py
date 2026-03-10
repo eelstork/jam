@@ -283,7 +283,8 @@ def test_land_no_branches(mock_isdir, mock_run):
     ]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["land", "myrepo"])
-    assert result.exit_code != 0
+    assert result.exit_code == 0
+    assert "No branches to land" in result.output
 
 
 @patch("jam.helpers.save_breadcrumb")
@@ -357,7 +358,8 @@ def test_land_all_no_repos(mock_run, tmp_path):
     ]
     runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
     result = runner.invoke(main, ["land", "--all"])
-    assert result.exit_code != 0
+    assert result.exit_code == 0
+    assert "No repos with branches to land" in result.output
 
 
 # --- infuse ---
@@ -568,8 +570,8 @@ def test_undo_infuse(mock_isdir, mock_run, mock_load, mock_clear):
 def test_undo_nothing(mock_isdir, mock_load):
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["undo", "myrepo"])
-    assert result.exit_code != 0
-    assert "Nothing to undo" in (result.output + (result.stderr or ""))
+    assert result.exit_code == 0
+    assert "Nothing to undo" in result.output
 
 
 # --- root ---

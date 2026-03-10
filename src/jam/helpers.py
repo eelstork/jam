@@ -1,9 +1,17 @@
 import json
 import os
+import random
 import subprocess
 import sys
 
 import click
+
+JAM_EMOJI = ["\U0001f353", "\U0001f347", "\U0001fad0", "\U0001f36f"]  # 🍓🍇🫐🍯
+
+
+def jam_emoji():
+    """Return a random jam-related emoji."""
+    return random.choice(JAM_EMOJI)
 
 
 def run(cmd, **kwargs):
@@ -45,6 +53,14 @@ def clear_breadcrumb(repo_path):
     path = _breadcrumb_path(repo_path)
     if os.path.exists(path):
         os.remove(path)
+
+
+def git_repo_root():
+    """Return the root of the current git repo, or None."""
+    result = run("git rev-parse --show-toplevel")
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
 
 
 def fail(msg):

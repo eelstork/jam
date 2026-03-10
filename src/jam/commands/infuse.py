@@ -56,7 +56,7 @@ def infuse(source, target):
         helpers.fail(f"Cannot infuse {source} into {dest_label} (conflicts).")
 
     if not to_copy:
-        click.echo("Nothing to infuse.")
+        click.echo(f"Nothing to infuse {helpers.jam_emoji()}")
         return
 
     for src_file, dst_file in to_copy:
