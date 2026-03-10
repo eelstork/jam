@@ -280,3 +280,68 @@ def test_land_no_branches(mock_isdir, mock_run):
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["land", "myrepo"])
     assert result.exit_code != 0
+
+
+# --- infuse ---
+
+
+def test_infuse_name_into_target(tmp_path):
+    src = tmp_path / "snippets"
+    src.mkdir()
+    (src / ".git").mkdir()
+    (src / "util.py").write_text("# util")
+    (src / "lib").mkdir()
+    (src / "lib" / "helper.py").write_text("# helper")
+    # .git file should be skipped
+    (src / ".git" / "config").write_text("gitconfig")
+
+    target = tmp_path / "myapp"
+    target.mkdir()
+    (target / ".git").mkdir()
+
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    result = runner.invoke(main, ["infuse", "snippets", "into", "myapp"])
+    assert result.exit_code == 0
+    assert "Infused 2 files" in result.output
+    assert (target / "util.py").read_text() == "# util"
+    assert (target / "lib" / "helper.py").read_text() == "# helper"
+    assert not (target / ".git" / "config").exists()
+
+
+def test_infuse_conflict(tmp_path):
+    src = tmp_path / "snippets"
+    src.mkdir()
+    (src / ".git").mkdir()
+    (src / "readme.txt").write_text("from source")
+
+    target = tmp_path / "myapp"
+    target.mkdir()
+    (target / ".git").mkdir()
+    (target / "readme.txt").write_text("already here")
+
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    result = runner.invoke(main, ["infuse", "snippets", "into", "myapp"])
+    assert result.exit_code != 0
+    assert "readme.txt" in result.output
+    # Target file unchanged
+    assert (target / "readme.txt").read_text() == "already here"
+
+
+def test_infuse_src_from_cwd(tmp_path, monkeypatch):
+    src = tmp_path / "snippets"
+    src.mkdir()
+    (src / ".git").mkdir()
+    (src / "data.txt").write_text("data")
+
+    target = tmp_path / "myapp"
+    target.mkdir()
+    (target / ".git").mkdir()
+
+    monkeypatch.setenv("JAM_HOME", str(tmp_path))
+    monkeypatch.chdir(target)
+
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    result = runner.invoke(main, ["infuse", "snippets"])
+    assert result.exit_code == 0
+    assert "Infused 1 file" in result.output
+    assert (target / "data.txt").read_text() == "data"

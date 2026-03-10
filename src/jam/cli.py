@@ -298,3 +298,65 @@ def land(name, show_all, fast):
     run(f"git push origin --delete {local_branch}", cwd=repo_path)
 
     click.echo(f"Landed {n} commit{'s' if n != 1 else ''} from {local_branch}.")
+
+
+@main.command()
+@click.argument("args", nargs=-1, required=True)
+def infuse(args):
+    """Copy files from one repo into another.
+
+    Usage:
+        jam infuse NAME into TARGET
+        jam infuse SRC              (when inside a repo)
+    """
+    import shutil
+
+    jam_home = get_jam_home()
+
+    if len(args) == 3 and args[1] == "into":
+        src_name, _, target_name = args
+        src_path = os.path.join(jam_home, src_name)
+        target_path = os.path.join(jam_home, target_name)
+        if not os.path.isdir(src_path):
+            fail(f"Repo {src_name} not found at {src_path}")
+        if not os.path.isdir(target_path):
+            fail(f"Repo {target_name} not found at {target_path}")
+    elif len(args) == 1:
+        src_name = args[0]
+        src_path = os.path.join(jam_home, src_name)
+        if not os.path.isdir(src_path):
+            fail(f"Repo {src_name} not found at {src_path}")
+        target_path = resolve_repo(None)
+        target_name = os.path.basename(target_path)
+    else:
+        fail("Usage: jam infuse NAME into TARGET, or jam infuse SRC (inside a repo)")
+
+    # Collect files from source (skip .git)
+    conflicts = []
+    to_copy = []
+    for dirpath, dirnames, filenames in os.walk(src_path):
+        dirnames[:] = [d for d in dirnames if d != ".git"]
+        for fname in filenames:
+            src_file = os.path.join(dirpath, fname)
+            rel = os.path.relpath(src_file, src_path)
+            dst_file = os.path.join(target_path, rel)
+            if os.path.exists(dst_file):
+                conflicts.append(rel)
+            else:
+                to_copy.append((src_file, dst_file))
+
+    if conflicts:
+        click.echo("Conflict — these files already exist in target:")
+        for c in conflicts:
+            click.echo(f"  {c}")
+        fail(f"Cannot infuse {src_name} into {target_name} (conflicts).")
+
+    if not to_copy:
+        click.echo("Nothing to infuse.")
+        return
+
+    for src_file, dst_file in to_copy:
+        os.makedirs(os.path.dirname(dst_file), exist_ok=True)
+        shutil.copy2(src_file, dst_file)
+
+    click.echo(f"Infused {len(to_copy)} file{'s' if len(to_copy) != 1 else ''} from {src_name} into {target_name}.")
