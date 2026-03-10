@@ -324,17 +324,26 @@ def test_land_all_fast(mock_run, mock_head, mock_crumb, tmp_path):
 
 @patch("jam.helpers.run")
 def test_land_all_confirm_shows_summary(mock_run, tmp_path):
-    (tmp_path / "myapp" / ".git").mkdir(parents=True)
+    (tmp_path / "appA" / ".git").mkdir(parents=True)
+    (tmp_path / "appB" / ".git").mkdir(parents=True)
 
     mock_run.side_effect = [
+        # appA: 3 commits
         ok(),                                       # git fetch
         ok("origin/feat-x\norigin/main\n"),         # git for-each-ref
-        ok("fff9999 the change\naaa1111 older\nccc3333 oldest\n"),  # 3 commits
+        ok("fff9999 the change\naaa1111 older\nccc3333 oldest\n"),
+        # appB: 1 commit
+        ok(),                                       # git fetch
+        ok("origin/fix-y\norigin/main\n"),          # git for-each-ref
+        ok("ddd4444 solo fix\n"),
     ]
     runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
     result = runner.invoke(main, ["land", "--all"], input="n\n")
-    # Should show: repo_name -- LAST_COMMIT (+n)
-    assert "myapp -- fff9999 the change (+3)" in result.output
+    # Multi-commit: shows (+n)
+    assert "appA -- fff9999 the change (+3)" in result.output
+    # Single commit: no (+n) suffix
+    assert "appB -- ddd4444 solo fix\n" in result.output
+    assert "appB -- ddd4444 solo fix (+" not in result.output
     assert "Aborted" in result.output
 
 
