@@ -94,10 +94,56 @@ def new(name, description, public):
 @main.command()
 @click.argument("source")
 @click.argument("target")
-@click.argument("description")
-def clone(source, target, description):
-    """Clone a repo as a new repo."""
-    click.echo(f"Cloning {source} as {target}")
+@click.argument("description", default="")
+@click.option("--public", is_flag=True, help="Create a public repo.")
+def clone(source, target, description, public):
+    """Clone a repo as a new repo. Usage: jam clone SOURCE TARGET [DESCRIPTION]"""
+    jam_home = get_jam_home()
+    user = get_gh_user()
+
+    # Resolve source repo
+    source_path = os.path.join(jam_home, source)
+    if not os.path.isdir(source_path):
+        fail(f"Source repo {source} not found at {source_path}")
+
+    # Check target doesn't exist
+    result = run(f"gh repo view {user}/{target}")
+    if result.returncode == 0:
+        fail(f"Repo {user}/{target} already exists.")
+
+    target_path = os.path.join(jam_home, target)
+    if os.path.exists(target_path):
+        fail(f"Directory {target_path} already exists.")
+
+    # Copy the repo contents (without .git)
+    import shutil
+    shutil.copytree(source_path, target_path, ignore=shutil.ignore_patterns(".git"))
+
+    # Init fresh git repo
+    run("git init", cwd=target_path)
+    run("git checkout -b main", cwd=target_path)
+
+    # Create the remote repo
+    visibility = "--public" if public else "--private"
+    result = run(f"gh repo create {user}/{target} {visibility}", cwd=target_path)
+    if result.returncode != 0:
+        fail(f"Failed to create repo: {result.stderr.strip()}")
+
+    # Set remote
+    run(f"git remote add origin https://github.com/{user}/{target}.git", cwd=target_path)
+
+    # Update README
+    readme_path = os.path.join(target_path, "README.md")
+    desc = description if description else "no description yet"
+    with open(readme_path, "w") as f:
+        f.write(f"# {target}\n\n{desc}\n")
+
+    # Commit and push
+    run("git add -A", cwd=target_path)
+    run('git commit -m "initial commit"', cwd=target_path)
+    run("git push -u origin main", cwd=target_path)
+
+    click.echo(f"Cloned {source} as {user}/{target} at {target_path}")
 
 
 @main.command(name="list")
