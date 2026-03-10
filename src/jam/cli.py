@@ -9,6 +9,8 @@ from jam.commands.infuse import infuse
 from jam.commands.land import land
 from jam.commands.list import list_repos
 from jam.commands.new import new
+from jam.commands.root import root
+from jam.commands.set_root import set_root
 from jam.commands.undo import undo
 from jam.commands.up import up
 
@@ -23,6 +25,8 @@ COMMANDS = [
     ("infuse", "Copy files from one repo into another", infuse),
     ("undo",   "Undo the last jam command",        undo),
     ("delete", "Delete a repo locally",            delete),
+    ("root",   "Show the jam root directory",      root),
+    ("set-root", "Set the jam root directory",     set_root),
 ]
 
 
@@ -65,3 +69,5 @@ main.add_command(land)
 main.add_command(infuse)
 main.add_command(undo)
 main.add_command(delete)
+main.add_command(root)
+main.add_command(set_root)
