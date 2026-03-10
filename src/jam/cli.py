@@ -54,10 +54,17 @@ def _interactive():
     name, _, cmd = COMMANDS[idx]
     click.echo(f"jam {name}")
 
-    # Let Click handle the rest — invoke the command.
-    # For commands that need args, Click will prompt or show usage.
+    # Collect required arguments interactively before invoking.
+    kwargs = {}
+    for param in cmd.params:
+        if isinstance(param, click.Argument) and param.required:
+            kwargs[param.name] = click.prompt(param.name.replace("_", " ").capitalize())
+        elif isinstance(param, click.Option) and param.is_flag:
+            # skip flags — use defaults
+            pass
+
     ctx = click.get_current_context()
-    ctx.invoke(cmd)
+    ctx.invoke(cmd, **kwargs)
 
 
 main.add_command(new)
