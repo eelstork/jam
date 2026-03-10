@@ -11,6 +11,8 @@ def up(message, name, force):
     """Add all, commit, and push."""
     repo_path = helpers.resolve_repo(name or None)
 
+    pre_head = helpers.get_head(repo_path)
+
     result = helpers.run("git add -A", cwd=repo_path)
     if result.returncode != 0:
         helpers.fail(f"git add failed: {result.stderr.strip()}")
@@ -24,4 +26,5 @@ def up(message, name, force):
     if result.returncode != 0:
         helpers.fail(f"git push failed: {result.stderr.strip()}")
 
+    helpers.save_breadcrumb(repo_path, "up", pre_head=pre_head)
     click.echo("Pushed.")

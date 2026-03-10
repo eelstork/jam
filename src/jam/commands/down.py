@@ -10,6 +10,8 @@ def down(name, force):
     """Pull latest changes."""
     repo_path = helpers.resolve_repo(name or None)
 
+    pre_head = helpers.get_head(repo_path)
+
     if force:
         helpers.run("git reset --hard HEAD", cwd=repo_path)
 
@@ -17,4 +19,5 @@ def down(name, force):
     if result.returncode != 0:
         helpers.fail(f"git pull failed: {result.stderr.strip()}")
 
+    helpers.save_breadcrumb(repo_path, "down", pre_head=pre_head)
     click.echo("Pulled.")

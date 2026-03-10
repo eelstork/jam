@@ -73,9 +73,11 @@ def test_new_no_description(mock_exists, mock_run):
 # --- up ---
 
 
+@patch("jam.helpers.save_breadcrumb")
+@patch("jam.helpers.get_head", return_value="abc1234")
 @patch("jam.helpers.run")
 @patch("os.path.isdir", return_value=True)
-def test_up_with_name(mock_isdir, mock_run):
+def test_up_with_name(mock_isdir, mock_run, mock_head, mock_crumb):
     mock_run.side_effect = [ok(), ok(), ok()]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["up", "--name", "myrepo", "fix stuff"])
@@ -83,11 +85,14 @@ def test_up_with_name(mock_isdir, mock_run):
     assert "Pushed" in result.output
     mock_run.assert_any_call("git add -A", cwd="/tmp/dev/myrepo")
     mock_run.assert_any_call('git commit -m "fix stuff"', cwd="/tmp/dev/myrepo")
+    mock_crumb.assert_called_once_with("/tmp/dev/myrepo", "up", pre_head="abc1234")
 
 
+@patch("jam.helpers.save_breadcrumb")
+@patch("jam.helpers.get_head", return_value="abc1234")
 @patch("jam.helpers.run")
 @patch("os.path.isdir", return_value=True)
-def test_up_force_push(mock_isdir, mock_run):
+def test_up_force_push(mock_isdir, mock_run, mock_head, mock_crumb):
     mock_run.side_effect = [ok(), ok(), ok()]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["up", "--force", "--name", "myrepo", "fix stuff"])
@@ -95,9 +100,11 @@ def test_up_force_push(mock_isdir, mock_run):
     mock_run.assert_any_call("git push --force", cwd="/tmp/dev/myrepo")
 
 
+@patch("jam.helpers.save_breadcrumb")
+@patch("jam.helpers.get_head", return_value="abc1234")
 @patch("jam.helpers.run")
 @patch("os.getcwd", return_value="/tmp/dev/myrepo")
-def test_up_without_name_uses_cwd(mock_cwd, mock_run):
+def test_up_without_name_uses_cwd(mock_cwd, mock_run, mock_head, mock_crumb):
     mock_run.side_effect = [ok(), ok(), ok()]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["up", "fix stuff"])
@@ -108,20 +115,25 @@ def test_up_without_name_uses_cwd(mock_cwd, mock_run):
 # --- down ---
 
 
+@patch("jam.helpers.save_breadcrumb")
+@patch("jam.helpers.get_head", return_value="abc1234")
 @patch("jam.helpers.run")
 @patch("os.path.isdir", return_value=True)
-def test_down_with_name(mock_isdir, mock_run):
+def test_down_with_name(mock_isdir, mock_run, mock_head, mock_crumb):
     mock_run.side_effect = [ok()]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["down", "myrepo"])
     assert result.exit_code == 0
     assert "Pulled" in result.output
     mock_run.assert_any_call("git pull", cwd="/tmp/dev/myrepo")
+    mock_crumb.assert_called_once_with("/tmp/dev/myrepo", "down", pre_head="abc1234")
 
 
+@patch("jam.helpers.save_breadcrumb")
+@patch("jam.helpers.get_head", return_value="abc1234")
 @patch("jam.helpers.run")
 @patch("os.path.isdir", return_value=True)
-def test_down_force(mock_isdir, mock_run):
+def test_down_force(mock_isdir, mock_run, mock_head, mock_crumb):
     mock_run.side_effect = [ok(), ok()]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["down", "--force", "myrepo"])
@@ -129,9 +141,11 @@ def test_down_force(mock_isdir, mock_run):
     mock_run.assert_any_call("git reset --hard HEAD", cwd="/tmp/dev/myrepo")
 
 
+@patch("jam.helpers.save_breadcrumb")
+@patch("jam.helpers.get_head", return_value="abc1234")
 @patch("jam.helpers.run")
 @patch("os.getcwd", return_value="/tmp/dev/myrepo")
-def test_down_without_name_uses_cwd(mock_cwd, mock_run):
+def test_down_without_name_uses_cwd(mock_cwd, mock_run, mock_head, mock_crumb):
     mock_run.side_effect = [ok()]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["down"])
@@ -219,9 +233,11 @@ BRANCHES_OUTPUT = "origin/feat-branch\norigin/main\n"
 COMMITS_OUTPUT = "abc1234 first commit\ndef5678 second commit\nghi9012 third commit\njkl3456 fourth commit\n"
 
 
+@patch("jam.helpers.save_breadcrumb")
+@patch("jam.helpers.get_head", return_value="abc1234")
 @patch("jam.helpers.run")
 @patch("os.path.isdir", return_value=True)
-def test_land_fast(mock_isdir, mock_run):
+def test_land_fast(mock_isdir, mock_run, mock_head, mock_crumb):
     mock_run.side_effect = [
         ok(),                   # git fetch
         ok(BRANCHES_OUTPUT),    # git for-each-ref
@@ -229,13 +245,12 @@ def test_land_fast(mock_isdir, mock_run):
         ok(),                   # git checkout main
         ok(),                   # git merge
         ok(),                   # git push
-        ok(),                   # git branch -d
-        ok(),                   # git push origin --delete
     ]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["land", "--fast", "myrepo"])
     assert result.exit_code == 0
     assert "Landed 4 commits from feat-branch" in result.output
+    mock_crumb.assert_called_once_with("/tmp/dev/myrepo", "land", pre_head="abc1234")
 
 
 @patch("jam.helpers.run")
@@ -285,7 +300,10 @@ def test_land_no_branches(mock_isdir, mock_run):
 # --- infuse ---
 
 
-def test_infuse_into_target(tmp_path):
+@patch("jam.helpers.save_breadcrumb")
+@patch("jam.helpers.get_head", return_value="abc1234")
+@patch("jam.helpers.run", return_value=ok())
+def test_infuse_into_target(mock_run, mock_head, mock_crumb, tmp_path):
     src = tmp_path / "snippets"
     src.mkdir()
     (src / ".git").mkdir()
@@ -305,6 +323,7 @@ def test_infuse_into_target(tmp_path):
     assert (target / "util.py").read_text() == "# util"
     assert (target / "lib" / "helper.py").read_text() == "# helper"
     assert not (target / ".git" / "config").exists()
+    mock_crumb.assert_called_once()
 
 
 def test_infuse_conflict(tmp_path):
@@ -325,7 +344,10 @@ def test_infuse_conflict(tmp_path):
     assert (target / "readme.txt").read_text() == "already here"
 
 
-def test_infuse_src_from_cwd(tmp_path, monkeypatch):
+@patch("jam.helpers.save_breadcrumb")
+@patch("jam.helpers.get_head", return_value="abc1234")
+@patch("jam.helpers.run", return_value=ok())
+def test_infuse_src_from_cwd(mock_run, mock_head, mock_crumb, tmp_path, monkeypatch):
     src = tmp_path / "snippets"
     src.mkdir()
     (src / ".git").mkdir()
@@ -345,7 +367,10 @@ def test_infuse_src_from_cwd(tmp_path, monkeypatch):
     assert (target / "data.txt").read_text() == "data"
 
 
-def test_infuse_into_subpath(tmp_path):
+@patch("jam.helpers.save_breadcrumb")
+@patch("jam.helpers.get_head", return_value="abc1234")
+@patch("jam.helpers.run", return_value=ok())
+def test_infuse_into_subpath(mock_run, mock_head, mock_crumb, tmp_path):
     src = tmp_path / "snippets"
     src.mkdir()
     (src / ".git").mkdir()
@@ -392,11 +417,11 @@ def test_delete_repo(tmp_path):
     (repo / "file.txt").write_text("data")
 
     runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
-    with patch("jam.helpers.run") as mock_run, patch("jam.helpers.get_gh_user", return_value="testuser"):
+    with patch("jam.helpers.run") as mock_run:
         mock_run.return_value = ok()
-        result = runner.invoke(main, ["delete", "myrepo"], input="y\nmyrepo\n")
+        result = runner.invoke(main, ["delete", "myrepo"], input="y\n")
     assert result.exit_code == 0
-    assert "Deleted myrepo" in result.output
+    assert "Deleted myrepo locally" in result.output
     assert not repo.exists()
 
 
@@ -406,21 +431,60 @@ def test_delete_aborted_on_confirm(tmp_path):
     (repo / ".git").mkdir()
 
     runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
-    with patch("jam.helpers.get_gh_user", return_value="testuser"):
-        result = runner.invoke(main, ["delete", "myrepo"], input="n\n")
+    result = runner.invoke(main, ["delete", "myrepo"], input="n\n")
     assert result.exit_code == 0
     assert "Aborted" in result.output
     assert repo.exists()
 
 
-def test_delete_aborted_on_wrong_name(tmp_path):
-    repo = tmp_path / "myrepo"
-    repo.mkdir()
-    (repo / ".git").mkdir()
+# --- undo ---
 
-    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
-    with patch("jam.helpers.get_gh_user", return_value="testuser"):
-        result = runner.invoke(main, ["delete", "myrepo"], input="y\nwrong\n")
+
+@patch("jam.helpers.clear_breadcrumb")
+@patch("jam.helpers.load_breadcrumb", return_value={"action": "down", "pre_head": "abc12345"})
+@patch("jam.helpers.run")
+@patch("os.path.isdir", return_value=True)
+def test_undo_down(mock_isdir, mock_run, mock_load, mock_clear):
+    mock_run.side_effect = [ok()]  # git reset --hard
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["undo", "myrepo"])
     assert result.exit_code == 0
-    assert "does not match" in result.output
-    assert repo.exists()
+    assert "Undid down" in result.output
+    assert "abc12345" in result.output
+    mock_run.assert_any_call("git reset --hard abc12345", cwd="/tmp/dev/myrepo")
+    mock_clear.assert_called_once()
+
+
+@patch("jam.helpers.clear_breadcrumb")
+@patch("jam.helpers.load_breadcrumb", return_value={"action": "up", "pre_head": "abc12345"})
+@patch("jam.helpers.run")
+@patch("os.path.isdir", return_value=True)
+def test_undo_up(mock_isdir, mock_run, mock_load, mock_clear):
+    mock_run.side_effect = [ok(), ok()]  # git reset, git push --force
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["undo", "myrepo"])
+    assert result.exit_code == 0
+    assert "Undid up" in result.output
+    mock_run.assert_any_call("git push --force", cwd="/tmp/dev/myrepo")
+
+
+@patch("jam.helpers.clear_breadcrumb")
+@patch("jam.helpers.load_breadcrumb", return_value={"action": "land", "pre_head": "abc12345"})
+@patch("jam.helpers.run")
+@patch("os.path.isdir", return_value=True)
+def test_undo_land(mock_isdir, mock_run, mock_load, mock_clear):
+    mock_run.side_effect = [ok(), ok()]  # git reset, git push --force
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["undo", "myrepo"])
+    assert result.exit_code == 0
+    assert "Undid land" in result.output
+    mock_run.assert_any_call("git push --force", cwd="/tmp/dev/myrepo")
+
+
+@patch("jam.helpers.load_breadcrumb", return_value=None)
+@patch("os.path.isdir", return_value=True)
+def test_undo_nothing(mock_isdir, mock_load):
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["undo", "myrepo"])
+    assert result.exit_code != 0
+    assert "Nothing to undo" in (result.output + (result.stderr or ""))
