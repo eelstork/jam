@@ -6,7 +6,7 @@ Jam keeps all your repos under one roof (`JAM_HOME`) and talks to GitHub via `gh
 
 Requires Python 3.10+, [git](https://git-scm.com), and [gh](https://cli.github.com) (authenticated).
 
-Install via `python install.py`, or `pip install -e .` if you prefer the standard Python way.
+Install via `python install.py`, or `pip install -e .` if you prefer the standard Python way. To remove: `python uninstall.py`.
 
 ## Setup
 
