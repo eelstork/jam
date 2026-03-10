@@ -1,9 +1,17 @@
 import json
 import os
+import random
 import subprocess
 import sys
 
 import click
+
+JAM_EMOJI = ["\U0001f353", "\U0001f347", "\U0001fad0", "\U0001f36f"]  # 🍓🍇🫐🍯
+
+
+def jam_emoji():
+    """Return a random jam-related emoji."""
+    return random.choice(JAM_EMOJI)
 
 
 def run(cmd, **kwargs):
