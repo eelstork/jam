@@ -276,21 +276,6 @@ def test_land_shows_3_commits_by_default(mock_isdir, mock_run):
 
 @patch("jam.helpers.run")
 @patch("os.path.isdir", return_value=True)
-def test_land_all_shows_all_commits(mock_isdir, mock_run):
-    mock_run.side_effect = [
-        ok(),                   # git fetch
-        ok(BRANCHES_OUTPUT),    # git for-each-ref
-        ok(COMMITS_OUTPUT),     # git log
-    ]
-    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
-    result = runner.invoke(main, ["land", "--all", "myrepo"], input="n\n")
-    assert "first commit" in result.output
-    assert "fourth commit" in result.output
-    assert "... and" not in result.output
-
-
-@patch("jam.helpers.run")
-@patch("os.path.isdir", return_value=True)
 def test_land_no_branches(mock_isdir, mock_run):
     mock_run.side_effect = [
         ok(),                   # git fetch
@@ -298,6 +283,71 @@ def test_land_no_branches(mock_isdir, mock_run):
     ]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["land", "myrepo"])
+    assert result.exit_code != 0
+
+
+@patch("jam.helpers.save_breadcrumb")
+@patch("jam.helpers.get_head", return_value="abc1234")
+@patch("jam.helpers.run")
+def test_land_all_fast(mock_run, mock_head, mock_crumb, tmp_path):
+    # Set up two repos with .git dirs
+    (tmp_path / "alpha" / ".git").mkdir(parents=True)
+    (tmp_path / "beta" / ".git").mkdir(parents=True)
+    # non-repo dir should be ignored
+    (tmp_path / "notrepo").mkdir()
+
+    mock_run.side_effect = [
+        # alpha: _get_landable
+        ok(),                                       # git fetch
+        ok("origin/feat-a\norigin/main\n"),         # git for-each-ref
+        ok("aaa1111 alpha change\n"),                # git log (1 commit)
+        # beta: _get_landable
+        ok(),                                       # git fetch
+        ok("origin/feat-b\norigin/main\n"),         # git for-each-ref
+        ok("bbb2222 beta first\nccc3333 beta second\n"),  # git log (2 commits)
+        # alpha: _do_land
+        ok(),                                       # git checkout main
+        ok(),                                       # git merge
+        ok(),                                       # git push
+        # beta: _do_land
+        ok(),                                       # git checkout main
+        ok(),                                       # git merge
+        ok(),                                       # git push
+    ]
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    result = runner.invoke(main, ["land", "--all", "--fast"])
+    assert result.exit_code == 0
+    assert "Landed 1 commit from feat-a in alpha" in result.output
+    assert "Landed 2 commits from feat-b in beta" in result.output
+    assert "Landed 2 repos" in result.output
+
+
+@patch("jam.helpers.run")
+def test_land_all_confirm_shows_summary(mock_run, tmp_path):
+    (tmp_path / "myapp" / ".git").mkdir(parents=True)
+
+    mock_run.side_effect = [
+        ok(),                                       # git fetch
+        ok("origin/feat-x\norigin/main\n"),         # git for-each-ref
+        ok("fff9999 the change\naaa1111 older\nccc3333 oldest\n"),  # 3 commits
+    ]
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    result = runner.invoke(main, ["land", "--all"], input="n\n")
+    # Should show: repo_name -- LAST_COMMIT (+n)
+    assert "myapp -- fff9999 the change (+3)" in result.output
+    assert "Aborted" in result.output
+
+
+@patch("jam.helpers.run")
+def test_land_all_no_repos(mock_run, tmp_path):
+    (tmp_path / "empty" / ".git").mkdir(parents=True)
+
+    mock_run.side_effect = [
+        ok(),                   # git fetch
+        ok("origin/main\n"),    # only main
+    ]
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    result = runner.invoke(main, ["land", "--all"])
     assert result.exit_code != 0
 
 
