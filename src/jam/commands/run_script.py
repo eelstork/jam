@@ -53,16 +53,49 @@ def _build_argv(script_path):
     return ["bash", script_path]
 
 
-def make_command(name, script_path, repo_root):
-    """Create a Click command that runs *script_path*."""
+def _repo_root_for(name):
+    """If *name* is a repo in JAM_HOME, return its path. Otherwise None."""
+    try:
+        jam_home = helpers.get_jam_home()
+    except SystemExit:
+        return None
+    repo_path = os.path.join(jam_home, name)
+    if os.path.isdir(os.path.join(repo_path, ".git")):
+        return repo_path
+    return None
 
-    @click.command(name, context_settings={"ignore_unknown_options": True,
-                                           "allow_extra_args": True})
+
+def make_command(cmd_name):
+    """Create a Click command that resolves and runs a repo-root script."""
+
+    @click.command(cmd_name, context_settings={"ignore_unknown_options": True,
+                                               "allow_extra_args": True})
     @click.argument("args", nargs=-1, type=click.UNPROCESSED)
     def cmd(args):
-        argv = _build_argv(script_path) + list(args)
+        args = list(args)
+
+        # If the first arg is a repo name, run the script from that repo.
+        repo_root = None
+        if args:
+            repo_root = _repo_root_for(args[0])
+        if repo_root is not None:
+            script = _find_script(repo_root, cmd_name)
+            if script is None:
+                helpers.fail(f"No script '{cmd_name}' in {args[0]}")
+            extra = args[1:]
+        else:
+            # Fall back to the current git repo root.
+            repo_root = helpers.git_repo_root()
+            if repo_root is None:
+                helpers.fail(f"Not in a git repo. Cannot run '{cmd_name}'.")
+            script = _find_script(repo_root, cmd_name)
+            if script is None:
+                helpers.fail(f"No script '{cmd_name}' found at {repo_root}")
+            extra = args
+
+        argv = _build_argv(script) + extra
         result = subprocess.run(argv, cwd=repo_root)
         sys.exit(result.returncode)
 
-    cmd.help = f"Run {os.path.basename(script_path)}"
+    cmd.help = f"Run {cmd_name} script from repo root"
     return cmd
