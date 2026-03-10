@@ -13,6 +13,7 @@ from jam.commands.root import root
 from jam.commands.set_root import set_root
 from jam.commands.undo import undo
 from jam.commands.up import up
+from jam.commands.update import update
 
 
 COMMANDS = [
@@ -27,6 +28,7 @@ COMMANDS = [
     ("delete", "Delete a repo locally",            delete),
     ("root",   "Show the jam root directory",      root),
     ("set-root", "Set the jam root directory",     set_root),
+    ("update",   "Update jam to the latest version", update),
 ]
 
 
@@ -78,3 +80,4 @@ main.add_command(undo)
 main.add_command(delete)
 main.add_command(root)
 main.add_command(set_root)
+main.add_command(update)
