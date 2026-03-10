@@ -93,14 +93,35 @@ def list_repos():
 
 
 @main.command()
-@click.argument("name")
 @click.argument("message")
-def up(name, message):
+@click.option("--force", is_flag=True, help="Force push.")
+def up(message, force):
     """Add all, commit, and push."""
-    click.echo(f"Pushing {name}: {message}")
+    result = run("git add -A")
+    if result.returncode != 0:
+        fail(f"git add failed: {result.stderr.strip()}")
+
+    result = run(f'git commit -m "{message}"')
+    if result.returncode != 0:
+        fail(f"git commit failed: {result.stderr.strip()}")
+
+    force_flag = "--force" if force else ""
+    result = run(f"git push {force_flag}")
+    if result.returncode != 0:
+        fail(f"git push failed: {result.stderr.strip()}")
+
+    click.echo("Pushed.")
 
 
 @main.command()
-def down():
+@click.option("--force", is_flag=True, help="Force pull (discard local changes).")
+def down(force):
     """Pull latest changes."""
-    click.echo("Pulling latest")
+    if force:
+        run("git reset --hard HEAD")
+
+    result = run("git pull")
+    if result.returncode != 0:
+        fail(f"git pull failed: {result.stderr.strip()}")
+
+    click.echo("Pulled.")
