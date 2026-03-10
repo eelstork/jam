@@ -251,6 +251,10 @@ def test_land_fast(mock_isdir, mock_run, mock_head, mock_crumb):
     assert result.exit_code == 0
     assert "Landed 4 commits from feat-branch" in result.output
     mock_crumb.assert_called_once_with("/tmp/dev/myrepo", "land", pre_head="abc1234")
+    # land should NOT delete the branch (local or remote)
+    cmds = [c.args[0] for c in mock_run.call_args_list]
+    assert not any("branch -d" in c for c in cmds)
+    assert not any("push origin --delete" in c for c in cmds)
 
 
 @patch("jam.helpers.run")
@@ -423,6 +427,11 @@ def test_delete_repo(tmp_path):
     assert result.exit_code == 0
     assert "Deleted myrepo locally" in result.output
     assert not repo.exists()
+    # Should tag remote, not delete it
+    cmds = [c.args[0] for c in mock_run.call_args_list]
+    assert any("git tag jam-delete" in c for c in cmds)
+    assert any("git push origin tag jam-delete" in c for c in cmds)
+    assert not any("gh repo delete" in c for c in cmds)
 
 
 def test_delete_aborted_on_confirm(tmp_path):
@@ -479,6 +488,20 @@ def test_undo_land(mock_isdir, mock_run, mock_load, mock_clear):
     assert result.exit_code == 0
     assert "Undid land" in result.output
     mock_run.assert_any_call("git push --force", cwd="/tmp/dev/myrepo")
+
+
+@patch("jam.helpers.clear_breadcrumb")
+@patch("jam.helpers.load_breadcrumb", return_value={"action": "infuse", "pre_head": "abc12345"})
+@patch("jam.helpers.run")
+@patch("os.path.isdir", return_value=True)
+def test_undo_infuse(mock_isdir, mock_run, mock_load, mock_clear):
+    mock_run.side_effect = [ok()]  # git reset --hard (no force push needed)
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["undo", "myrepo"])
+    assert result.exit_code == 0
+    assert "Undid infuse" in result.output
+    mock_run.assert_any_call("git reset --hard abc12345", cwd="/tmp/dev/myrepo")
+    mock_clear.assert_called_once()
 
 
 @patch("jam.helpers.load_breadcrumb", return_value=None)
