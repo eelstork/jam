@@ -29,6 +29,20 @@ def get_gh_user():
     return result.stdout.strip()
 
 
+def resolve_repo(name=None):
+    """Resolve repo path from NAME or current directory."""
+    jam_home = get_jam_home()
+    if name:
+        repo_path = os.path.join(jam_home, name)
+        if not os.path.isdir(repo_path):
+            fail(f"Repo {name} not found at {repo_path}")
+        return repo_path
+    cwd = os.getcwd()
+    if cwd.startswith(jam_home):
+        return cwd
+    fail("Not inside JAM_HOME. Provide a repo name.")
+
+
 @click.group()
 def main():
     """jam - fast and safe git repos"""
@@ -93,20 +107,29 @@ def list_repos():
 
 
 @main.command()
-@click.argument("message")
+@click.argument("args", nargs=-1, required=True)
 @click.option("--force", is_flag=True, help="Force push.")
-def up(message, force):
-    """Add all, commit, and push."""
-    result = run("git add -A")
+def up(args, force):
+    """Add all, commit, and push. Usage: jam up [NAME] MESSAGE"""
+    if len(args) == 2:
+        name, message = args
+    elif len(args) == 1:
+        name, message = None, args[0]
+    else:
+        fail("Usage: jam up [NAME] MESSAGE")
+
+    repo_path = resolve_repo(name)
+
+    result = run("git add -A", cwd=repo_path)
     if result.returncode != 0:
         fail(f"git add failed: {result.stderr.strip()}")
 
-    result = run(f'git commit -m "{message}"')
+    result = run(f'git commit -m "{message}"', cwd=repo_path)
     if result.returncode != 0:
         fail(f"git commit failed: {result.stderr.strip()}")
 
     force_flag = "--force" if force else ""
-    result = run(f"git push {force_flag}")
+    result = run(f"git push {force_flag}", cwd=repo_path)
     if result.returncode != 0:
         fail(f"git push failed: {result.stderr.strip()}")
 
@@ -114,13 +137,16 @@ def up(message, force):
 
 
 @main.command()
+@click.argument("name", default="")
 @click.option("--force", is_flag=True, help="Force pull (discard local changes).")
-def down(force):
-    """Pull latest changes."""
-    if force:
-        run("git reset --hard HEAD")
+def down(name, force):
+    """Pull latest changes. Usage: jam down [NAME]"""
+    repo_path = resolve_repo(name or None)
 
-    result = run("git pull")
+    if force:
+        run("git reset --hard HEAD", cwd=repo_path)
+
+    result = run("git pull", cwd=repo_path)
     if result.returncode != 0:
         fail(f"git pull failed: {result.stderr.strip()}")
 
