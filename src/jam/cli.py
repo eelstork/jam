@@ -374,3 +374,36 @@ def infuse(args):
 
     dest_label = f"{target_name}/{dest_subpath}" if dest_subpath else target_name
     click.echo(f"Infused {len(to_copy)} file{'s' if len(to_copy) != 1 else ''} from {src_name} into {dest_label}.")
+
+
+@main.command()
+@click.argument("name")
+def delete(name):
+    """Delete a repo locally and on GitHub."""
+    import shutil
+
+    jam_home = get_jam_home()
+    user = get_gh_user()
+    repo_path = os.path.join(jam_home, name)
+
+    if not os.path.isdir(repo_path):
+        fail(f"Repo {name} not found at {repo_path}")
+
+    if not click.confirm(f"Delete {name}? This removes the local copy and the GitHub repo."):
+        click.echo("Aborted.")
+        return
+
+    confirm = click.prompt(f"Type '{name}' to confirm")
+    if confirm != name:
+        click.echo("Name does not match. Aborted.")
+        return
+
+    # Delete on GitHub
+    result = run(f"gh repo delete {user}/{name} --yes")
+    if result.returncode != 0:
+        fail(f"Failed to delete GitHub repo: {result.stderr.strip()}")
+
+    # Delete locally
+    shutil.rmtree(repo_path)
+
+    click.echo(f"Deleted {name}.")
