@@ -382,3 +382,47 @@ def test_infuse_into_subpath_exists(tmp_path):
     result = runner.invoke(main, ["infuse", "snippets", "into", "myapp/lib"])
     assert result.exit_code != 0
     assert "already exists" in result.output
+
+
+# --- delete ---
+
+
+def test_delete_repo(tmp_path):
+    repo = tmp_path / "myrepo"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+    (repo / "file.txt").write_text("data")
+
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    with patch("jam.cli.run") as mock_run, patch("jam.cli.get_gh_user", return_value="testuser"):
+        mock_run.return_value = ok()
+        result = runner.invoke(main, ["delete", "myrepo"], input="y\nmyrepo\n")
+    assert result.exit_code == 0
+    assert "Deleted myrepo" in result.output
+    assert not repo.exists()
+
+
+def test_delete_aborted_on_confirm(tmp_path):
+    repo = tmp_path / "myrepo"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    with patch("jam.cli.get_gh_user", return_value="testuser"):
+        result = runner.invoke(main, ["delete", "myrepo"], input="n\n")
+    assert result.exit_code == 0
+    assert "Aborted" in result.output
+    assert repo.exists()
+
+
+def test_delete_aborted_on_wrong_name(tmp_path):
+    repo = tmp_path / "myrepo"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    with patch("jam.cli.get_gh_user", return_value="testuser"):
+        result = runner.invoke(main, ["delete", "myrepo"], input="y\nwrong\n")
+    assert result.exit_code == 0
+    assert "does not match" in result.output
+    assert repo.exists()
