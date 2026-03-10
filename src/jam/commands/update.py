@@ -26,7 +26,7 @@ def update():
         helpers.fail(f"git pull failed: {result.stderr.strip()}")
 
     click.echo("Installing...")
-    result = helpers.run(f"{sys.executable} -m pip install -e .", cwd=jam_repo)
+    result = helpers.run(f'"{sys.executable}" -m pip install -e .', cwd=jam_repo)
     if result.returncode != 0:
         helpers.fail(f"pip install failed: {result.stderr.strip()}")
 
