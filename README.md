@@ -4,19 +4,19 @@ Git without the ceremony. Create repos, push code, land branches -- all in a few
 
 Jam keeps all your repos under one roof (`JAM_HOME`) and talks to GitHub via `gh`. No config files, no boilerplate. Just the stuff you actually do, made fast.
 
-## Setup
-
 Requires Python 3.10+, [git](https://git-scm.com), and [gh](https://cli.github.com) (authenticated).
 
+Install via `python install.py`, or `pip install -e .` if you prefer the standard Python way. To remove: `python uninstall.py`.
+
+## Setup
+
+Point jam at your repos directory:
+
 ```
-pip install -e .
+jam set-root ~/dev
 ```
 
-Set `JAM_HOME` to where you keep your repos:
-
-```
-export JAM_HOME=~/dev
-```
+Or set the `JAM_HOME` environment variable if you prefer.
 
 ## Commands
 
@@ -37,3 +37,7 @@ export JAM_HOME=~/dev
 **`jam undo [NAME]`** -- reverse the last jam command on a repo. Works with `up`, `down`, `land`, and `infuse`. ([undo.py](src/jam/commands/undo.py))
 
 **`jam delete NAME`** -- remove a repo locally. Tags the remote for later cleanup. Re-clone from GitHub to recover. ([delete.py](src/jam/commands/delete.py))
+
+**`jam root`** -- print the current jam root directory. ([root.py](src/jam/commands/root.py))
+
+**`jam set-root PATH`** -- set the jam root directory. Writes to `~/.config/jam/root`. The `JAM_HOME` env var takes priority if set. ([set_root.py](src/jam/commands/set_root.py))

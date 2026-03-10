@@ -570,3 +570,65 @@ def test_undo_nothing(mock_isdir, mock_load):
     result = runner.invoke(main, ["undo", "myrepo"])
     assert result.exit_code != 0
     assert "Nothing to undo" in (result.output + (result.stderr or ""))
+
+
+# --- root ---
+
+
+def test_root_from_env():
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["root"])
+    assert result.exit_code == 0
+    assert "/tmp/dev" in result.output
+
+
+def test_root_from_config_file(tmp_path):
+    config_dir = tmp_path / ".config" / "jam"
+    config_dir.mkdir(parents=True)
+    (config_dir / "root").write_text("/tmp/myrepos\n")
+    with patch("jam.helpers.os.path.expanduser", return_value=str(tmp_path)):
+        runner = CliRunner(env={})
+        result = runner.invoke(main, ["root"])
+    assert result.exit_code == 0
+    assert "/tmp/myrepos" in result.output
+
+
+def test_root_env_overrides_config(tmp_path):
+    config_dir = tmp_path / ".config" / "jam"
+    config_dir.mkdir(parents=True)
+    (config_dir / "root").write_text("/tmp/from-file\n")
+    with patch("jam.helpers.os.path.expanduser", return_value=str(tmp_path)):
+        runner = CliRunner(env={"JAM_HOME": "/tmp/from-env"})
+        result = runner.invoke(main, ["root"])
+    assert result.exit_code == 0
+    assert "/tmp/from-env" in result.output
+
+
+def test_root_fails_without_anything():
+    with patch("jam.helpers.os.path.expanduser", return_value="/nonexistent"):
+        runner = CliRunner(env={})
+        result = runner.invoke(main, ["root"])
+    assert result.exit_code != 0
+    assert "set-root" in (result.output + (result.stderr or ""))
+
+
+# --- set-root ---
+
+
+def test_set_root(tmp_path):
+    config_dir = tmp_path / ".config" / "jam"
+    target = tmp_path / "repos"
+    target.mkdir()
+    with patch("jam.helpers._config_dir", return_value=str(config_dir)):
+        runner = CliRunner(env={})
+        result = runner.invoke(main, ["set-root", str(target)])
+    assert result.exit_code == 0
+    assert "Jam root set to" in result.output
+    assert (config_dir / "root").read_text().strip() == str(target)
+
+
+def test_set_root_nonexistent_dir():
+    runner = CliRunner(env={})
+    result = runner.invoke(main, ["set-root", "/no/such/path"])
+    assert result.exit_code != 0
+    assert "does not exist" in (result.output + (result.stderr or ""))
