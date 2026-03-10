@@ -4,13 +4,11 @@ Git without the ceremony. Create repos, push code, land branches -- all in a few
 
 Jam keeps all your repos under one roof (`JAM_HOME`) and talks to GitHub via `gh`. No config files, no boilerplate. Just the stuff you actually do, made fast.
 
-## Setup
-
 Requires Python 3.10+, [git](https://git-scm.com), and [gh](https://cli.github.com) (authenticated).
 
-```
-pip install -e .
-```
+Install via `python install.py`, or `pip install -e .` if you prefer the standard Python way.
+
+## Setup
 
 Set `JAM_HOME` to where you keep your repos:
 
