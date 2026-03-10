@@ -1,4 +1,32 @@
+import os
+import subprocess
+import sys
+
 import click
+
+
+def run(cmd, **kwargs):
+    """Run a shell command and return the result."""
+    return subprocess.run(cmd, shell=True, capture_output=True, text=True, **kwargs)
+
+
+def fail(msg):
+    click.echo(f"Error: {msg}", err=True)
+    sys.exit(1)
+
+
+def get_jam_home():
+    jam_home = os.environ.get("JAM_HOME")
+    if not jam_home:
+        fail("JAM_HOME is not set. Set it to your repos directory.")
+    return jam_home
+
+
+def get_gh_user():
+    result = run("gh api user --jq .login")
+    if result.returncode != 0:
+        fail("Could not get GitHub user. Is gh authenticated?")
+    return result.stdout.strip()
 
 
 @click.group()
@@ -9,10 +37,44 @@ def main():
 
 @main.command()
 @click.argument("name")
-@click.argument("description")
-def new(name, description):
+@click.argument("description", default="")
+@click.option("--public", is_flag=True, help="Create a public repo.")
+def new(name, description, public):
     """Create a new repo."""
-    click.echo(f"Creating repo: {name}")
+    jam_home = get_jam_home()
+    user = get_gh_user()
+
+    # Check if repo already exists on GitHub
+    result = run(f"gh repo view {user}/{name}")
+    if result.returncode == 0:
+        fail(f"Repo {user}/{name} already exists.")
+
+    # Check if directory already exists locally
+    repo_path = os.path.join(jam_home, name)
+    if os.path.exists(repo_path):
+        fail(f"Directory {repo_path} already exists.")
+
+    # Create the repo on GitHub
+    visibility = "--public" if public else "--private"
+    result = run(f"gh repo create {user}/{name} {visibility} --clone", cwd=jam_home)
+    if result.returncode != 0:
+        fail(f"Failed to create repo: {result.stderr.strip()}")
+
+    # Ensure default branch is main
+    run(f"git checkout -b main", cwd=repo_path)
+
+    # Create README
+    readme_path = os.path.join(repo_path, "README.md")
+    desc = description if description else "no description yet"
+    with open(readme_path, "w") as f:
+        f.write(f"# {name}\n\n{desc}\n")
+
+    # Commit and push
+    run("git add README.md", cwd=repo_path)
+    run('git commit -m "initial commit"', cwd=repo_path)
+    run("git push -u origin main", cwd=repo_path)
+
+    click.echo(f"Created {user}/{name} at {repo_path}")
 
 
 @main.command()
