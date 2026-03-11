@@ -42,16 +42,11 @@ class _JamGroup(click.Group):
         if cmd is not None:
             return cmd
 
-        # Look for a script at the git repo root.
-        from jam.commands.run_script import _find_script, make_command
+        # Defer script resolution to the command itself — we don't know
+        # yet whether the user is targeting a named repo or the cwd.
+        from jam.commands.run_script import make_command
 
-        repo_root = helpers.git_repo_root()
-        if repo_root is None:
-            return None
-        script = _find_script(repo_root, cmd_name)
-        if script is None:
-            return None
-        return make_command(cmd_name, script, repo_root)
+        return make_command(cmd_name)
 
 
 @click.group(cls=_JamGroup, invoke_without_command=True)
