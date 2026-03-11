@@ -55,9 +55,8 @@ def _build_argv(script_path):
 
 def _repo_root_for(name):
     """If *name* is a repo in JAM_HOME, return its path. Otherwise None."""
-    try:
-        jam_home = helpers.get_jam_home()
-    except SystemExit:
+    jam_home = helpers.find_jam_home()
+    if jam_home is None:
         return None
     repo_path = os.path.join(jam_home, name)
     if os.path.isdir(os.path.join(repo_path, ".git")):

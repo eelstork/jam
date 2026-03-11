@@ -76,13 +76,19 @@ def _root_file():
     return os.path.join(_config_dir(), "root")
 
 
-def get_jam_home():
+def find_jam_home():
+    """Return the jam home directory, or None if not configured."""
     jam_home = os.environ.get("JAM_HOME")
     if not jam_home:
         root_file = _root_file()
         if os.path.exists(root_file):
             with open(root_file) as f:
                 jam_home = f.read().strip()
+    return jam_home or None
+
+
+def get_jam_home():
+    jam_home = find_jam_home()
     if not jam_home:
         fail("JAM_HOME is not set. Run jam set-root PATH or set the JAM_HOME env var.")
     return jam_home
