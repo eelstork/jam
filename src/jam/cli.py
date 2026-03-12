@@ -87,6 +87,7 @@ def _interactive():
 
 
 main.add_command(new)
+main.add_command(new, "create")
 main.add_command(clone)
 main.add_command(list_repos)
 main.add_command(up)
