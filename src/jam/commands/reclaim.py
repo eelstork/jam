@@ -60,6 +60,15 @@ def reclaim(name):
         script_file = tempfile.NamedTemporaryFile(
             mode="w", suffix=".py", delete=False, prefix="jam-reclaim-",
         )
+        counter_file = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".cnt", delete=False, prefix="jam-reclaim-",
+        )
+        counter_file.write("0")
+        counter_file.close()
+        counter_path = counter_file.name.replace("\\", "/")
+
+        click.echo("Rewriting", nl=False)
+
         script_file.write(f"""\
 import json, os, sys
 with open({map_file.name!r}) as f:
@@ -74,6 +83,12 @@ if tag:
         lines[0] = first + " " + tag
         msg = "\\n".join(lines)
 sys.stdout.write(msg)
+cf = {counter_path!r}
+n = int(open(cf).read()) + 1
+open(cf, "w").write(str(n))
+if n % 10 == 0:
+    sys.stderr.write(".")
+    sys.stderr.flush()
 """)
         script_file.close()
 
@@ -88,6 +103,8 @@ sys.stdout.write(msg)
             cwd=repo_path,
         )
 
+        click.echo()  # newline after dots
+
         if result.returncode != 0:
             click.echo(f"filter-branch failed: {result.stderr.strip()}")
             return
@@ -98,3 +115,5 @@ sys.stdout.write(msg)
     finally:
         os.unlink(map_file.name)
         os.unlink(script_file.name)
+        if os.path.exists(counter_file.name):
+            os.unlink(counter_file.name)
