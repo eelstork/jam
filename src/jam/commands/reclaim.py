@@ -2,6 +2,7 @@
 
 import json
 import os
+import sys
 import tempfile
 
 import click
@@ -17,7 +18,12 @@ def reclaim(name):
 
     This rewrites commit history. All commit SHAs will change.
     """
-    repo_path = helpers.resolve_repo(name or None)
+    if name:
+        repo_path = helpers.resolve_repo(name)
+    else:
+        repo_path = helpers.git_repo_root()
+        if not repo_path:
+            helpers.fail("Not in a git repo. Provide a repo name or cd into one.")
 
     baseline = helpers.get_jam_config("baseline_velocity")
     if not baseline or baseline <= 0:
@@ -73,8 +79,9 @@ sys.stdout.write(msg)
 
         pre_head = helpers.get_head(repo_path)
 
+        python = sys.executable
         result = helpers.run(
-            f'git filter-branch -f --msg-filter "python3 {script_file.name}" -- --all',
+            f'git filter-branch -f --msg-filter "{python} {script_file.name}" -- --all',
             cwd=repo_path,
         )
 
