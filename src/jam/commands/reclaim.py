@@ -101,11 +101,14 @@ if n % 10 == 0:
         if not git_name or not git_email:
             helpers.fail("git user.name and user.email must be configured.")
 
+        # Only reclaim commits authored by @anthropic.com
         env_filter = (
+            "if echo \"$GIT_AUTHOR_EMAIL\" | grep -q '@anthropic.com$'; then "
             f"export GIT_AUTHOR_NAME='{git_name}';"
             f"export GIT_AUTHOR_EMAIL='{git_email}';"
             f"export GIT_COMMITTER_NAME='{git_name}';"
             f"export GIT_COMMITTER_EMAIL='{git_email}';"
+            "fi"
         )
 
         # Use forward slashes and single-quote paths so mingw bash
