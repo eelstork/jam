@@ -290,3 +290,37 @@ def branch_velocity(repo_dir, base_ref, head_ref):
     velocity = total_added / elapsed_hours
 
     return total_added, elapsed_hours, velocity
+
+
+# ── Per-commit velocity (for jam reclaim) ───────────────────────────────
+
+
+def commit_velocities(repo_dir, baseline):
+    """Return a dict mapping commit SHA to velocity tag string.
+
+    For each consecutive pair of commits, computes velocity and the ratio
+    against *baseline*. Commits where velocity can't be computed are omitted.
+    """
+    commits = get_commits(repo_dir)
+    if len(commits) < 2:
+        return {}
+
+    tags = {}
+    for i in range(len(commits) - 1):
+        sha, ts, _name = commits[i]
+        prev_sha, prev_ts, _prev_name = commits[i + 1]
+
+        added, removed = diff_stat(repo_dir, prev_sha, sha)
+        delta = added - removed
+
+        gap_sec = ts - prev_ts
+        if gap_sec <= 0 or delta <= 0:
+            continue
+
+        hours = gap_sec / 3600
+        vel = delta / hours
+        ratio = vel / baseline
+        if ratio > 0:
+            tags[sha] = f"[x{ratio:.1f}]"
+
+    return tags
