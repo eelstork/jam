@@ -64,11 +64,25 @@ def _compute_velocity_tag(repo_path, branch):
     return f"[x{ratio:.1f}]"
 
 
+def _ensure_attribution(repo_path):
+    """If attribution is enabled but repo lacks .claude/settings.json, add it."""
+    if not helpers.get_jam_config("attribution_enabled"):
+        return
+    if helpers.repo_has_claude_attribution(repo_path):
+        return
+    path = helpers.write_repo_claude_settings(repo_path)
+    helpers.run("git add .claude/settings.json", cwd=repo_path)
+    helpers.run('git commit -m "add .claude/settings.json for attribution"', cwd=repo_path)
+    helpers.run("git push", cwd=repo_path)
+    click.echo(f"Added {path}")
+
+
 def _do_land(repo_path, branch):
     """Merge branch into main, push, save breadcrumb. Return commit count or None on failure."""
     tag = _compute_velocity_tag(repo_path, branch)
 
     helpers.run("git checkout main", cwd=repo_path)
+    _ensure_attribution(repo_path)
 
     pre_head = helpers.get_head(repo_path)
 

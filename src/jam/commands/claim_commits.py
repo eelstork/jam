@@ -1,38 +1,20 @@
 """jam claim-commits — Set up commit attribution and velocity tracking."""
 
-import json
-import os
-
 import click
 
 from jam import helpers
 from jam import velocity
 
 
-CLAUDE_SETTINGS_PATH = os.path.join(os.path.expanduser("~"), ".claude", "settings.json")
-
-
-def _read_claude_settings():
-    if os.path.exists(CLAUDE_SETTINGS_PATH):
-        with open(CLAUDE_SETTINGS_PATH) as f:
-            return json.load(f)
-    return {}
-
-
-def _write_claude_settings(settings):
-    os.makedirs(os.path.dirname(CLAUDE_SETTINGS_PATH), exist_ok=True)
-    with open(CLAUDE_SETTINGS_PATH, "w") as f:
-        json.dump(settings, f, indent=2)
-
-
 @click.command("claim-commits")
 def claim_commits():
     """Set up commit attribution and velocity tracking."""
 
-    # Step 1: Enable attribution?
+    # Step 1: Restore personal attribution?
     choice = click.prompt(
-        "Enable attribution? This restores your name on AI-assisted commits "
-        "and is only relevant to Claude Code users",
+        "Restore personal attribution? Removes \"Claude\" from AI-assisted "
+        "commits and is only relevant to Claude Code users; AI assisted "
+        "commits remain traceable",
         type=click.Choice(["yes", "no"], case_sensitive=False),
     )
 
@@ -41,26 +23,27 @@ def claim_commits():
         helpers.save_jam_config(claim_commits_done=True, attribution_enabled=False)
         return
 
-    # Step 2: Suppress Claude Code's default attribution
-    settings = _read_claude_settings()
-    if "attribution" not in settings:
-        settings["attribution"] = {}
-    settings["attribution"]["commit"] = ""
-    _write_claude_settings(settings)
-    click.echo(f"Updated {CLAUDE_SETTINGS_PATH}")
-    click.echo("Claude Code commit attribution suppressed — your git config name will be used.")
+    # Step 2: Write .claude/settings.json into the current repo (if in one)
+    repo_root = helpers.git_repo_root()
+    if repo_root:
+        path = helpers.write_repo_claude_settings(repo_root)
+        click.echo(f"Wrote {path}")
+    click.echo("Personal attribution restored.")
 
     helpers.save_jam_config(attribution_enabled=True)
 
     # Step 3: Measure velocity?
     click.echo()
-    measure = click.confirm(
-        "Measure your coding velocity? This scans your GitHub repos (read-only) "
-        "and takes a few minutes",
-        default=False,
+    choice = click.prompt(
+        "Assisted coding velocity (accel factor) may be displayed in your "
+        "commit comments; to enable this feature, jam will establish an "
+        "intrinsic vs assisted velocity baseline. This process requires "
+        "scanning your github repos (read-only; skips repositories over "
+        "25mb), and may take a few minutes",
+        type=click.Choice(["yes", "no"], case_sensitive=False),
     )
 
-    if not measure:
+    if choice == "no":
         helpers.save_jam_config(claim_commits_done=True)
         click.echo("Done. Run 'jam claim-commits' again to set up velocity later.")
         return
@@ -117,14 +100,14 @@ def claim_commits():
 
     # Step 4: Display velocity tag on land?
     click.echo()
-    show_tag = click.confirm(
-        f"Display velocity tag [x{multiplier:.1f}] when landing branches?",
-        default=True,
+    choice = click.prompt(
+        "Amend commit messages using velocity tag when landing branches?",
+        type=click.Choice(["yes", "no"], case_sensitive=False),
     )
 
     helpers.save_jam_config(
         claim_commits_done=True,
-        show_velocity_tag=show_tag,
+        show_velocity_tag=(choice == "yes"),
     )
 
     click.echo("Done.")

@@ -34,7 +34,10 @@ def new(name, description, public):
     with open(readme_path, "w") as f:
         f.write(f"# {name}\n\n{desc}\n")
 
-    helpers.run("git add README.md", cwd=repo_path)
+    if helpers.get_jam_config("attribution_enabled"):
+        helpers.write_repo_claude_settings(repo_path)
+
+    helpers.run("git add -A", cwd=repo_path)
     helpers.run('git commit -m "initial commit"', cwd=repo_path)
     helpers.run("git push -u origin main", cwd=repo_path)
 
