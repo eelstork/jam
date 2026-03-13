@@ -111,14 +111,14 @@ def get_gh_user():
 
 def resolve_repo(name=None):
     """Resolve repo path from NAME or current directory."""
-    jam_home = get_jam_home()
+    jam_home = os.path.realpath(get_jam_home())
     if name:
         repo_path = os.path.join(jam_home, name)
         if not os.path.isdir(repo_path):
             fail(f"Repo {name} not found at {repo_path}")
         return repo_path
-    cwd = os.getcwd()
-    if cwd.startswith(jam_home):
+    cwd = os.path.realpath(os.getcwd())
+    if cwd == jam_home or cwd.startswith(jam_home + os.sep):
         return cwd
     fail("Not inside JAM_HOME. Provide a repo name.")
 
