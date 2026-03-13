@@ -149,3 +149,33 @@ def save_jam_config(**kwargs):
 def get_jam_config(key, default=None):
     """Convenience getter for a single config value."""
     return load_jam_config().get(key, default)
+
+
+def _repo_claude_settings_path(repo_path):
+    return os.path.join(repo_path, ".claude", "settings.json")
+
+
+def write_repo_claude_settings(repo_path):
+    """Write .claude/settings.json into a repo to suppress Claude attribution."""
+    settings_path = _repo_claude_settings_path(repo_path)
+    os.makedirs(os.path.dirname(settings_path), exist_ok=True)
+    settings = {}
+    if os.path.exists(settings_path):
+        with open(settings_path) as f:
+            settings = json.load(f)
+    if "attribution" not in settings:
+        settings["attribution"] = {}
+    settings["attribution"]["commit"] = ""
+    with open(settings_path, "w") as f:
+        json.dump(settings, f, indent=2)
+    return settings_path
+
+
+def repo_has_claude_attribution(repo_path):
+    """Check if a repo has .claude/settings.json with attribution suppressed."""
+    settings_path = _repo_claude_settings_path(repo_path)
+    if not os.path.exists(settings_path):
+        return False
+    with open(settings_path) as f:
+        settings = json.load(f)
+    return settings.get("attribution", {}).get("commit") == ""

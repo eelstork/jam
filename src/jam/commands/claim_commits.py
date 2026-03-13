@@ -1,28 +1,9 @@
 """jam claim-commits — Set up commit attribution and velocity tracking."""
 
-import json
-import os
-
 import click
 
 from jam import helpers
 from jam import velocity
-
-
-CLAUDE_SETTINGS_PATH = os.path.join(os.path.expanduser("~"), ".claude", "settings.json")
-
-
-def _read_claude_settings():
-    if os.path.exists(CLAUDE_SETTINGS_PATH):
-        with open(CLAUDE_SETTINGS_PATH) as f:
-            return json.load(f)
-    return {}
-
-
-def _write_claude_settings(settings):
-    os.makedirs(os.path.dirname(CLAUDE_SETTINGS_PATH), exist_ok=True)
-    with open(CLAUDE_SETTINGS_PATH, "w") as f:
-        json.dump(settings, f, indent=2)
 
 
 @click.command("claim-commits")
@@ -41,14 +22,14 @@ def claim_commits():
         helpers.save_jam_config(claim_commits_done=True, attribution_enabled=False)
         return
 
-    # Step 2: Suppress Claude Code's default attribution
-    settings = _read_claude_settings()
-    if "attribution" not in settings:
-        settings["attribution"] = {}
-    settings["attribution"]["commit"] = ""
-    _write_claude_settings(settings)
-    click.echo(f"Updated {CLAUDE_SETTINGS_PATH}")
-    click.echo("Claude Code commit attribution suppressed — your git config name will be used.")
+    # Step 2: Write .claude/settings.json into the current repo (if in one)
+    repo_root = helpers.git_repo_root()
+    if repo_root:
+        path = helpers.write_repo_claude_settings(repo_root)
+        click.echo(f"Wrote {path}")
+        click.echo("Claude Code commit attribution suppressed in this repo.")
+    else:
+        click.echo("Not in a git repo — attribution will be applied on jam new/clone/land.")
 
     helpers.save_jam_config(attribution_enabled=True)
 

@@ -45,6 +45,9 @@ def clone(source, target, description, public):
     with open(readme_path, "w") as f:
         f.write(f"# {target}\n\n{desc}\n")
 
+    if helpers.get_jam_config("attribution_enabled"):
+        helpers.write_repo_claude_settings(target_path)
+
     helpers.run("git add -A", cwd=target_path)
     helpers.run('git commit -m "initial commit"', cwd=target_path)
     helpers.run("git push -u origin main", cwd=target_path)
