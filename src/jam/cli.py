@@ -16,6 +16,7 @@ from jam.commands.undo import undo
 from jam.commands.up import up
 from jam.commands.update import update
 from jam.commands.claim_commits import claim_commits
+from jam.commands.reclaim import reclaim
 
 
 COMMANDS = [
@@ -32,6 +33,7 @@ COMMANDS = [
     ("set-root", "Set the jam root directory",     set_root),
     ("update",   "Update jam to the latest version", update),
     ("claim-commits", "Set up commit attribution and velocity", claim_commits),
+    ("reclaim", "Tag existing commits with velocity markers", reclaim),
 ]
 
 
@@ -105,3 +107,4 @@ main.add_command(root)
 main.add_command(set_root)
 main.add_command(update)
 main.add_command(claim_commits)
+main.add_command(reclaim)
