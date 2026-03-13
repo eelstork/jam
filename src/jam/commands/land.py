@@ -3,6 +3,7 @@ import os
 import click
 
 from jam import helpers
+from jam import velocity
 
 
 def _get_landable(repo_path):
@@ -42,13 +43,41 @@ def _get_landable(repo_path):
     return branch, commits
 
 
+def _compute_velocity_tag(repo_path, branch):
+    """Return a string like '[x4.5]' or None if velocity tracking is off or fails."""
+    if not helpers.get_jam_config("show_velocity_tag"):
+        return None
+
+    baseline = helpers.get_jam_config("baseline_velocity")
+    if not baseline or baseline <= 0:
+        return None
+
+    result = velocity.branch_velocity(repo_path, "main", branch)
+    if result is None:
+        return None
+
+    _lines, _hours, vel = result
+    if vel <= 0:
+        return None
+
+    ratio = vel / baseline
+    return f"[x{ratio:.1f}]"
+
+
 def _do_land(repo_path, branch):
     """Merge branch into main, push, save breadcrumb. Return commit count or None on failure."""
+    tag = _compute_velocity_tag(repo_path, branch)
+
     helpers.run("git checkout main", cwd=repo_path)
 
     pre_head = helpers.get_head(repo_path)
 
-    result = helpers.run(f"git merge {branch}", cwd=repo_path)
+    if tag:
+        local = branch.replace("origin/", "", 1)
+        msg = f"Merge branch '{local}' {tag}"
+        result = helpers.run(f"git merge --no-ff {branch} -m \"{msg}\"", cwd=repo_path)
+    else:
+        result = helpers.run(f"git merge {branch}", cwd=repo_path)
     if result.returncode != 0:
         return None
 

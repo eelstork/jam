@@ -121,3 +121,31 @@ def resolve_repo(name=None):
     if cwd.startswith(jam_home):
         return cwd
     fail("Not inside JAM_HOME. Provide a repo name.")
+
+
+def _jam_config_path():
+    return os.path.join(_config_dir(), "config.json")
+
+
+def load_jam_config():
+    """Read and return the jam config dict, or {} if missing."""
+    path = _jam_config_path()
+    if not os.path.exists(path):
+        return {}
+    with open(path) as f:
+        return json.load(f)
+
+
+def save_jam_config(**kwargs):
+    """Merge kwargs into the existing config and write it back."""
+    config = load_jam_config()
+    config.update(kwargs)
+    path = _jam_config_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(config, f, indent=2)
+
+
+def get_jam_config(key, default=None):
+    """Convenience getter for a single config value."""
+    return load_jam_config().get(key, default)
