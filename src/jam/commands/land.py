@@ -65,16 +65,26 @@ def _compute_velocity_tag(repo_path, branch):
 
 
 def _ensure_attribution(repo_path):
-    """If attribution is enabled but repo lacks .claude/settings.json, add it."""
+    """If attribution is enabled but repo lacks .claude/settings.json, add it.
+
+    Returns True on success (or nothing to do), False on failure.
+    """
     if not helpers.get_jam_config("attribution_enabled"):
-        return
+        return True
     if helpers.repo_has_claude_attribution(repo_path):
-        return
+        return True
     path = helpers.write_repo_claude_settings(repo_path)
-    helpers.run("git add .claude/settings.json", cwd=repo_path)
-    helpers.run('git commit -m "add .claude/settings.json for attribution"', cwd=repo_path)
-    helpers.run("git push", cwd=repo_path)
+    for cmd in [
+        "git add .claude/settings.json",
+        'git commit -m "add .claude/settings.json for attribution"',
+        "git push",
+    ]:
+        result = helpers.run(cmd, cwd=repo_path)
+        if result.returncode != 0:
+            click.echo(f"Attribution setup failed: {result.stderr.strip()}")
+            return False
     click.echo(f"Added {path}")
+    return True
 
 
 def _do_land(repo_path, branch):
@@ -82,7 +92,8 @@ def _do_land(repo_path, branch):
     tag = _compute_velocity_tag(repo_path, branch)
 
     helpers.run("git checkout main", cwd=repo_path)
-    _ensure_attribution(repo_path)
+    if not _ensure_attribution(repo_path):
+        return None
 
     pre_head = helpers.get_head(repo_path)
 
@@ -139,7 +150,7 @@ def _land_all(fast):
             suffix = f" (+{n})" if n > 1 else ""
             click.echo(f"  {repo_name} -- {last}{suffix}")
         click.echo()
-        if not click.confirm("Proceed?"):
+        if not click.confirm("Proceed?", default=True):
             click.echo("Aborted.")
             return
 
@@ -177,7 +188,7 @@ def _land_one(name, fast):
         if n > 3:
             click.echo(f"  ... and {n - 3} more")
         click.echo()
-        if not click.confirm("Proceed?"):
+        if not click.confirm("Proceed?", default=True):
             click.echo("Aborted.")
             return
 
