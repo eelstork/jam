@@ -111,14 +111,14 @@ def get_gh_user():
 
 def resolve_repo(name=None):
     """Resolve repo path from NAME or current directory."""
-    jam_home = get_jam_home()
+    jam_home = os.path.realpath(get_jam_home())
     if name:
         repo_path = os.path.join(jam_home, name)
         if not os.path.isdir(repo_path):
             fail(f"Repo {name} not found at {repo_path}")
         return repo_path
-    cwd = os.getcwd()
-    if cwd.startswith(jam_home):
+    cwd = os.path.realpath(os.getcwd())
+    if cwd == jam_home or cwd.startswith(jam_home + os.sep):
         return cwd
     fail("Not inside JAM_HOME. Provide a repo name.")
 
@@ -149,3 +149,33 @@ def save_jam_config(**kwargs):
 def get_jam_config(key, default=None):
     """Convenience getter for a single config value."""
     return load_jam_config().get(key, default)
+
+
+def _repo_claude_settings_path(repo_path):
+    return os.path.join(repo_path, ".claude", "settings.json")
+
+
+def write_repo_claude_settings(repo_path):
+    """Write .claude/settings.json into a repo to suppress Claude attribution."""
+    settings_path = _repo_claude_settings_path(repo_path)
+    os.makedirs(os.path.dirname(settings_path), exist_ok=True)
+    settings = {}
+    if os.path.exists(settings_path):
+        with open(settings_path) as f:
+            settings = json.load(f)
+    if "attribution" not in settings:
+        settings["attribution"] = {}
+    settings["attribution"]["commit"] = ""
+    with open(settings_path, "w") as f:
+        json.dump(settings, f, indent=2)
+    return settings_path
+
+
+def repo_has_claude_attribution(repo_path):
+    """Check if a repo has .claude/settings.json with attribution suppressed."""
+    settings_path = _repo_claude_settings_path(repo_path)
+    if not os.path.exists(settings_path):
+        return False
+    with open(settings_path) as f:
+        settings = json.load(f)
+    return settings.get("attribution", {}).get("commit") == ""

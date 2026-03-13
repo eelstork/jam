@@ -1,5 +1,8 @@
 """jam autofac-reset — Clear velocity and attribution config for re-testing."""
 
+import os
+import shutil
+
 import click
 
 from jam import helpers
@@ -19,4 +22,12 @@ def autofac_reset():
         multiplier=None,
         show_velocity_tag=False,
     )
+
+    repo_root = helpers.git_repo_root()
+    if repo_root:
+        claude_dir = os.path.join(repo_root, ".claude")
+        if os.path.isdir(claude_dir):
+            shutil.rmtree(claude_dir)
+            click.echo(f"Removed {claude_dir}")
+
     click.echo("Reset. Run 'jam claim-commits' to set up again.")
