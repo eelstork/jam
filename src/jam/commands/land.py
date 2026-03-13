@@ -139,7 +139,7 @@ def _land_all(fast):
             suffix = f" (+{n})" if n > 1 else ""
             click.echo(f"  {repo_name} -- {last}{suffix}")
         click.echo()
-        if not click.confirm("Proceed?"):
+        if not click.confirm("Proceed?", default=True):
             click.echo("Aborted.")
             return
 
@@ -177,7 +177,7 @@ def _land_one(name, fast):
         if n > 3:
             click.echo(f"  ... and {n - 3} more")
         click.echo()
-        if not click.confirm("Proceed?"):
+        if not click.confirm("Proceed?", default=True):
             click.echo("Aborted.")
             return
 
