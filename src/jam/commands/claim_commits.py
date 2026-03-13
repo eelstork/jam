@@ -101,7 +101,7 @@ def claim_commits():
     # Step 4: Display velocity tag on land?
     click.echo()
     choice = click.prompt(
-        "Display velocity tag when landing branches?",
+        "Amend commit messages using velocity tag when landing branches?",
         type=click.Choice(["yes", "no"], case_sensitive=False),
     )
 
