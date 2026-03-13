@@ -103,8 +103,12 @@ def clone_repo(clone_url, dest):
 
 
 def median_velocity(repo_dir, cap_hours=0, max_velocity=0,
-                    author="", exclude_author=""):
-    """Return the median velocity (lines/hour) for *repo_dir*, or None."""
+                    author="", exclude_author="", gross=False):
+    """Return the median velocity (lines/hour) for *repo_dir*, or None.
+
+    When *gross* is True, uses total lines added (speed) instead of
+    net lines (added - removed).
+    """
     commits = get_commits(repo_dir, author=author, exclude_author=exclude_author)
     if len(commits) < 2:
         return None
@@ -116,7 +120,7 @@ def median_velocity(repo_dir, cap_hours=0, max_velocity=0,
         prev_sha, prev_ts, _prev_name = commits[i + 1]
 
         added, removed = diff_stat(repo_dir, prev_sha, sha)
-        delta = added - removed
+        delta = added if gross else added - removed
 
         gap_sec = ts - prev_ts
         if gap_sec <= 0:
@@ -240,8 +244,12 @@ def aggregate_velocity(username, token, max_size_mb=25, cap_hours=0,
 # ── Branch velocity (for jam land) ──────────────────────────────────────
 
 
-def branch_velocity(repo_dir, base_ref, head_ref):
+def branch_velocity(repo_dir, base_ref, head_ref, gross=False):
     """Compute velocity for a branch's commits.
+
+    When *gross* is True, uses total lines added (speed).
+    Default uses net lines (added - removed) for consistency with
+    median_velocity and commit_velocities.
 
     Returns (lines_changed, elapsed_hours, velocity_lph) or None.
     """
@@ -268,15 +276,10 @@ def branch_velocity(repo_dir, base_ref, head_ref):
         return None
 
     # Total lines changed on the branch
-    numstat = git_in(repo_dir, "diff", "--numstat", merge_base, head_ref).splitlines()
-    total_added = 0
-    for line in numstat:
-        parts = line.split()
-        if not parts or parts[0] == "-":
-            continue
-        total_added += int(parts[0])
+    added, removed = diff_stat(repo_dir, merge_base, head_ref)
+    delta = added if gross else added - removed
 
-    if total_added == 0:
+    if delta <= 0:
         return None
 
     # Time window: earliest to latest commit on the branch
@@ -287,19 +290,22 @@ def branch_velocity(repo_dir, base_ref, head_ref):
         return None
 
     elapsed_hours = elapsed_sec / 3600
-    velocity = total_added / elapsed_hours
+    vel = delta / elapsed_hours
 
-    return total_added, elapsed_hours, velocity
+    return delta, elapsed_hours, vel
 
 
 # ── Per-commit velocity (for jam reclaim) ───────────────────────────────
 
 
-def commit_velocities(repo_dir, baseline):
+def commit_velocities(repo_dir, baseline, gross=False):
     """Return a dict mapping commit SHA to velocity tag string.
 
     For each consecutive pair of commits, computes velocity and the ratio
     against *baseline*. Commits where velocity can't be computed are omitted.
+
+    When *gross* is True, uses total lines added (speed) instead of
+    net lines (added - removed).
     """
     commits = get_commits(repo_dir)
     if len(commits) < 2:
@@ -311,7 +317,7 @@ def commit_velocities(repo_dir, baseline):
         prev_sha, prev_ts, _prev_name = commits[i + 1]
 
         added, removed = diff_stat(repo_dir, prev_sha, sha)
-        delta = added - removed
+        delta = added if gross else added - removed
 
         gap_sec = ts - prev_ts
         if gap_sec <= 0 or delta <= 0:
