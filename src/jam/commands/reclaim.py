@@ -79,9 +79,12 @@ sys.stdout.write(msg)
 
         pre_head = helpers.get_head(repo_path)
 
-        python = sys.executable
+        # Use forward slashes and single-quote paths so mingw bash
+        # on Windows doesn't split on spaces or mangle backslashes.
+        python = sys.executable.replace("\\", "/")
+        script = script_file.name.replace("\\", "/")
         result = helpers.run(
-            f'git filter-branch -f --msg-filter "{python} {script_file.name}" -- --all',
+            f"git filter-branch -f --msg-filter \"'{python}' '{script}'\" -- --all",
             cwd=repo_path,
         )
 
