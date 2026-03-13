@@ -80,7 +80,7 @@ tag = tags.get(sha)
 if tag:
     lines = msg.split("\\n", 1)
     first = lines[0].rstrip()
-    if not first.endswith("]") or not "[x" in first:
+    if not ("[x" in first and first.endswith("]")):
         lines[0] = first + " " + tag
         msg = "\\n".join(lines)
 sys.stdout.write(msg)
