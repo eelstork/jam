@@ -69,16 +69,16 @@ def claim_commits():
     # Classic mode (human baseline)
     click.echo("Measuring classic (human) velocity ...")
     classic = velocity.aggregate_velocity(
-        username, token, max_velocity=100,
-        exclude_author="bot,dependabot,renovate",
+        username, token, max_velocity=velocity.INTRINSIC_MAX_VELOCITY,
+        exclude_author=velocity.EXCLUDE_BOTS,
         on_progress=on_progress,
     )
 
     # Machine-assisted mode
     click.echo("\nMeasuring machine-assisted velocity ...")
     machine = velocity.aggregate_velocity(
-        username, token, max_velocity=10000,
-        exclude_author="bot,dependabot,renovate",
+        username, token, max_velocity=velocity.MACHINE_MAX_VELOCITY,
+        exclude_author=velocity.EXCLUDE_BOTS,
         on_progress=on_progress,
     )
 
