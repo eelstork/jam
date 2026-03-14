@@ -18,6 +18,7 @@ from jam.commands.update import update
 from jam.commands.claim_commits import claim_commits
 from jam.commands.reclaim import reclaim
 from jam.commands.autofac_reset import autofac_reset
+from jam.commands.velocity_cmd import velocity_cmd
 
 
 COMMANDS = [
@@ -36,6 +37,7 @@ COMMANDS = [
     ("claim-commits", "Set up commit attribution and velocity", claim_commits),
     ("reclaim", "Tag existing commits with velocity markers", reclaim),
     ("autofac-reset", "Clear velocity and attribution config", autofac_reset),
+    ("velocity", "Evaluate velocity for a repo", velocity_cmd),
 ]
 
 
@@ -111,3 +113,4 @@ main.add_command(update)
 main.add_command(claim_commits)
 main.add_command(reclaim)
 main.add_command(autofac_reset)
+main.add_command(velocity_cmd)
