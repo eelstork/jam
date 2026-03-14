@@ -42,6 +42,8 @@ Or set the `JAM_HOME` environment variable if you prefer.
 
 **`jam set-root PATH`** -- set the jam root directory. Writes to `~/.config/jam/root`. The `JAM_HOME` env var takes priority if set. ([set_root.py](src/jam/commands/set_root.py))
 
+**`jam update`** -- pull the latest jam source and reinstall. Runs `git pull` + `pip install -e .` from wherever jam is installed. ([update.py](src/jam/commands/update.py))
+
 ## Command passthrough
 
 Any command that isn't built-in gets routed to a script at the repo root. Drop a `deploy.sh`, `test.py`, or `build.ps1` next to your `.git` and run it with `jam deploy`, `jam test`, `jam build`. Extra arguments are forwarded: `jam build --release v2` runs `bash build.sh --release v2`.
