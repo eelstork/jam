@@ -30,7 +30,7 @@ Or set the `JAM_HOME` environment variable if you prefer.
 
 **`jam down [NAME]`** -- pull latest. `--force` throws away local changes first. ([down.py](src/jam/commands/down.py))
 
-**`jam land [NAME]`** -- merge the most recent branch into main. Shows the last 3 commits and asks before doing anything. `--all` lands across all repos at once. `--fast` skips confirmation. ([land.py](src/jam/commands/land.py))
+**`jam land [NAME]`** -- merge the most recent branch into main and show all landed commits. `--all` lands across all repos at once. ([land.py](src/jam/commands/land.py))
 
 **`jam infuse SOURCE --into TARGET`** -- drop files from one repo into another, auto-commits the result. Bails if anything would overwrite. Also works with a subpath: `jam infuse snippets --into myapp/vendor/ext`. Or just `jam infuse SOURCE` from inside the target repo. ([infuse.py](src/jam/commands/infuse.py))
 

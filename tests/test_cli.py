@@ -247,7 +247,7 @@ def test_land_fast(mock_isdir, mock_run, mock_head, mock_crumb):
         ok(),                   # git push
     ]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
-    result = runner.invoke(main, ["land", "--fast", "myrepo"])
+    result = runner.invoke(main, ["land", "myrepo"])
     assert result.exit_code == 0
     assert "Landed 4 commits from feat-branch" in result.output
     mock_crumb.assert_called_once_with("/tmp/dev/myrepo", "land", pre_head="abc1234")
@@ -256,22 +256,6 @@ def test_land_fast(mock_isdir, mock_run, mock_head, mock_crumb):
     assert not any("branch -d" in c for c in cmds)
     assert not any("push origin --delete" in c for c in cmds)
 
-
-@patch("jam.helpers.run")
-@patch("os.path.isdir", return_value=True)
-def test_land_shows_3_commits_by_default(mock_isdir, mock_run):
-    mock_run.side_effect = [
-        ok(),                   # git fetch
-        ok(BRANCHES_OUTPUT),    # git for-each-ref
-        ok(COMMITS_OUTPUT),     # git log
-    ]
-    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
-    result = runner.invoke(main, ["land", "myrepo"], input="n\n")
-    assert "first commit" in result.output
-    assert "second commit" in result.output
-    assert "third commit" in result.output
-    assert "fourth commit" not in result.output
-    assert "... and 1 more" in result.output
 
 
 @patch("jam.helpers.run")
@@ -316,36 +300,12 @@ def test_land_all_fast(mock_run, mock_head, mock_crumb, tmp_path):
         ok(),                                       # git push
     ]
     runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
-    result = runner.invoke(main, ["land", "--all", "--fast"])
+    result = runner.invoke(main, ["land", "--all"])
     assert result.exit_code == 0
     assert "Landed 1 commit from feat-a in alpha" in result.output
     assert "Landed 2 commits from feat-b in beta" in result.output
     assert "Landed 2 repos" in result.output
 
-
-@patch("jam.helpers.run")
-def test_land_all_confirm_shows_summary(mock_run, tmp_path):
-    (tmp_path / "appA" / ".git").mkdir(parents=True)
-    (tmp_path / "appB" / ".git").mkdir(parents=True)
-
-    mock_run.side_effect = [
-        # appA: 3 commits
-        ok(),                                       # git fetch
-        ok("origin/feat-x\norigin/main\n"),         # git for-each-ref
-        ok("fff9999 the change\naaa1111 older\nccc3333 oldest\n"),
-        # appB: 1 commit
-        ok(),                                       # git fetch
-        ok("origin/fix-y\norigin/main\n"),          # git for-each-ref
-        ok("ddd4444 solo fix\n"),
-    ]
-    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
-    result = runner.invoke(main, ["land", "--all"], input="n\n")
-    # Multi-commit: shows (+n)
-    assert "appA -- fff9999 the change (+3)" in result.output
-    # Single commit: no (+n) suffix
-    assert "appB -- ddd4444 solo fix\n" in result.output
-    assert "appB -- ddd4444 solo fix (+" not in result.output
-    assert "Aborted" in result.output
 
 
 @patch("jam.helpers.run")
