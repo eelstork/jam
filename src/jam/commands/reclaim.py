@@ -27,18 +27,33 @@ def reclaim(name):
             helpers.fail("Not in a git repo. Provide a repo name or cd into one.")
 
     baseline = helpers.get_jam_config("baseline_velocity")
-    if not baseline or baseline <= 0:
-        helpers.fail(
-            "No baseline velocity configured. Run 'jam claim-commits' first."
-        )
 
-    # Compute per-commit velocities
-    tags = velocity.commit_velocities(repo_path, baseline)
-    if not tags:
-        click.echo("No commits to tag (too few commits or no measurable velocity).")
+    # Velocity tagging is optional — only compute tags if a baseline exists
+    if baseline and baseline > 0:
+        tags = velocity.commit_velocities(repo_path, baseline)
+    else:
+        tags = {}
+
+    # Count commits eligible for authorship reclaim
+    result = helpers.run(
+        "git log --all --format=%H:%ae", cwd=repo_path,
+    )
+    anthropic_shas = [
+        line.split(":")[0]
+        for line in result.stdout.strip().splitlines()
+        if "@anthropic.com" in line
+    ]
+
+    if not tags and not anthropic_shas:
+        click.echo("Nothing to reclaim.")
         return
 
-    click.echo(f"Found {len(tags)} commit(s) to tag in {os.path.basename(repo_path)}.")
+    parts = []
+    if anthropic_shas:
+        parts.append(f"{len(anthropic_shas)} commit(s) to reclaim")
+    if tags:
+        parts.append(f"{len(tags)} commit(s) to tag")
+    click.echo(f"Found {', '.join(parts)} in {os.path.basename(repo_path)}.")
     click.echo()
     click.echo("This will rewrite commit history. All commit SHAs will change.")
     choice = click.prompt(
@@ -130,7 +145,12 @@ if n % 10 == 0:
             return
 
         helpers.save_breadcrumb(repo_path, "reclaim", pre_head=pre_head)
-        click.echo(f"Tagged {len(tags)} commit(s).")
+        parts = []
+        if anthropic_shas:
+            parts.append(f"Reclaimed {len(anthropic_shas)} commit(s)")
+        if tags:
+            parts.append(f"tagged {len(tags)} commit(s)")
+        click.echo(". ".join(parts) + ".")
 
     finally:
         os.unlink(map_file.name)
