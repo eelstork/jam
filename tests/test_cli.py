@@ -237,7 +237,8 @@ COMMITS_OUTPUT = "abc1234 first commit\ndef5678 second commit\nghi9012 third com
 @patch("jam.helpers.get_head", return_value="abc1234")
 @patch("jam.helpers.run")
 @patch("os.path.isdir", return_value=True)
-def test_land_fast(mock_isdir, mock_run, mock_head, mock_crumb):
+@patch("jam.helpers.get_jam_config", return_value=None)
+def test_land_fast(mock_config, mock_isdir, mock_run, mock_head, mock_crumb):
     mock_run.side_effect = [
         ok(),                   # git fetch
         ok(BRANCHES_OUTPUT),    # git for-each-ref
@@ -274,7 +275,8 @@ def test_land_no_branches(mock_isdir, mock_run):
 @patch("jam.helpers.save_breadcrumb")
 @patch("jam.helpers.get_head", return_value="abc1234")
 @patch("jam.helpers.run")
-def test_land_all_fast(mock_run, mock_head, mock_crumb, tmp_path):
+@patch("jam.helpers.get_jam_config", return_value=None)
+def test_land_all_fast(mock_config, mock_run, mock_head, mock_crumb, tmp_path):
     # Set up two repos with .git dirs
     (tmp_path / "alpha" / ".git").mkdir(parents=True)
     (tmp_path / "beta" / ".git").mkdir(parents=True)

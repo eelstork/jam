@@ -83,6 +83,22 @@ def env(tmp_path_factory):
     runner = CliRunner(env={"JAM_HOME": jam_home})
     created_repos = []
 
+    # Disable commit signing for the duration of the test run — the CI
+    # environment may have signing enabled with a server that is
+    # unavailable to the test process.
+    _prev_gpgsign = subprocess.run(
+        ["git", "config", "--global", "commit.gpgsign"],
+        capture_output=True, text=True,
+    ).stdout.strip()
+    subprocess.run(
+        ["git", "config", "--global", "commit.gpgsign", "false"],
+        check=True,
+    )
+
+    # Let git use gh as credential helper so HTTPS pushes/pulls work
+    # when only GH_TOKEN (or gh auth) is available.
+    subprocess.run(["gh", "auth", "setup-git"], capture_output=True)
+
     class Env:
         pass
 
@@ -93,6 +109,18 @@ def env(tmp_path_factory):
     e.created_repos = created_repos
 
     yield e
+
+    # Teardown: restore git signing config
+    if _prev_gpgsign:
+        subprocess.run(
+            ["git", "config", "--global", "commit.gpgsign", _prev_gpgsign],
+            capture_output=True,
+        )
+    else:
+        subprocess.run(
+            ["git", "config", "--global", "--unset", "commit.gpgsign"],
+            capture_output=True,
+        )
 
     # Teardown: delete every remote repo we created
     for name in created_repos:
@@ -226,14 +254,15 @@ class TestLifecycle:
         subprocess.run("git add -A", shell=True, cwd=repo_path)
         subprocess.run('git commit -m "add snippet"', shell=True, cwd=repo_path)
 
+        # Use a subpath to avoid conflicts with files shared via clone
         result = env.runner.invoke(
-            main, ["infuse", self.repo_name, "--into", self.repo2_name],
+            main, ["infuse", self.repo_name, "--into", f"{self.repo2_name}/imported"],
         )
         assert result.exit_code == 0, result.output
         assert "Infused" in result.output
 
         repo2_path = os.path.join(env.jam_home, self.repo2_name)
-        assert os.path.isfile(os.path.join(repo2_path, "snippet.txt"))
+        assert os.path.isfile(os.path.join(repo2_path, "imported", "snippet.txt"))
 
     # -- delete -------------------------------------------------------------
 
@@ -267,6 +296,18 @@ class TestClaimAndReclaim:
         assert result.exit_code == 0, result.output
 
         repo_path = os.path.join(env.jam_home, self.repo_name)
+
+        # Set a non-anthropic identity in this repo so reclaim has a
+        # real user to rewrite to (the CI global config may itself use
+        # an @anthropic.com email).
+        subprocess.run(
+            ["git", "config", "user.name", "Test User"],
+            cwd=repo_path,
+        )
+        subprocess.run(
+            ["git", "config", "user.email", "testuser@example.com"],
+            cwd=repo_path,
+        )
 
         # Fake an anthropic-authored commit
         with open(os.path.join(repo_path, "ai.txt"), "w") as f:
