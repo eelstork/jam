@@ -116,23 +116,30 @@ if n % 10 == 0:
         if not git_name or not git_email:
             helpers.fail("git user.name and user.email must be configured.")
 
-        # Only reclaim commits authored by @anthropic.com
-        env_filter = (
-            "if echo \"$GIT_AUTHOR_EMAIL\" | grep -q '@anthropic.com$'; then "
-            f"export GIT_AUTHOR_NAME='{git_name}';"
-            f"export GIT_AUTHOR_EMAIL='{git_email}';"
-            f"export GIT_COMMITTER_NAME='{git_name}';"
-            f"export GIT_COMMITTER_EMAIL='{git_email}';"
-            "fi"
+        # Write the env-filter to a temp file to avoid shell quoting
+        # issues — $GIT_AUTHOR_EMAIL must survive the outer shell and
+        # be expanded only when filter-branch evals the script.
+        env_filter_file = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".sh", delete=False, prefix="jam-reclaim-env-",
         )
+        env_filter_file.write(
+            f'if echo "$GIT_AUTHOR_EMAIL" | grep -q \'@anthropic.com$\'; then\n'
+            f"  export GIT_AUTHOR_NAME='{git_name}'\n"
+            f"  export GIT_AUTHOR_EMAIL='{git_email}'\n"
+            f"  export GIT_COMMITTER_NAME='{git_name}'\n"
+            f"  export GIT_COMMITTER_EMAIL='{git_email}'\n"
+            f"fi\n"
+        )
+        env_filter_file.close()
 
         # Use forward slashes and single-quote paths so mingw bash
         # on Windows doesn't split on spaces or mangle backslashes.
         python = sys.executable.replace("\\", "/")
         script = script_file.name.replace("\\", "/")
+        env_script = env_filter_file.name.replace("\\", "/")
         result = helpers.run(
             f"git filter-branch -f"
-            f" --env-filter \"{env_filter}\""
+            f" --env-filter '. {env_script}'"
             f" --msg-filter \"'{python}' '{script}'\""
             f" -- --all",
             cwd=repo_path,
@@ -143,6 +150,14 @@ if n % 10 == 0:
         if result.returncode != 0:
             click.echo(f"filter-branch failed: {result.stderr.strip()}")
             return
+
+        # Remove backup refs so the original (unrewritten) commits are
+        # no longer reachable via refs/original/.
+        helpers.run(
+            "git for-each-ref --format='delete %(refname)' refs/original/ | "
+            "git update-ref --stdin",
+            cwd=repo_path,
+        )
 
         helpers.save_breadcrumb(repo_path, "reclaim", pre_head=pre_head)
         parts = []
@@ -157,3 +172,5 @@ if n % 10 == 0:
         os.unlink(script_file.name)
         if os.path.exists(counter_file.name):
             os.unlink(counter_file.name)
+        if os.path.exists(env_filter_file.name):
+            os.unlink(env_filter_file.name)

@@ -14,15 +14,15 @@ def _get_landable(repo_path):
 
     result = helpers.run(
         "git for-each-ref --sort=-committerdate refs/remotes/origin/ "
-        "--format=%(refname:short)",
+        "--format='%(refname:short)'",
         cwd=repo_path,
     )
     if result.returncode != 0:
         return None
 
     branches = [
-        b.strip() for b in result.stdout.strip().splitlines()
-        if b.strip() and b.strip() not in ("origin/main", "origin/HEAD")
+        b.strip().strip("'") for b in result.stdout.strip().splitlines()
+        if b.strip().strip("'") and b.strip().strip("'") not in ("origin/main", "origin/HEAD")
     ]
     if not branches:
         return None
