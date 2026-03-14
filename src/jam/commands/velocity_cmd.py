@@ -35,10 +35,31 @@ def velocity_cmd(name):
     label, desc, since = PERIODS[idx]
     click.echo(f"Measuring velocity ({desc.lower()}) ...")
 
-    med = velocity.median_velocity(repo_path, since=since)
+    exclude = "bot,dependabot,renovate"
 
-    if med is None:
+    classic = velocity.median_velocity(
+        repo_path, max_velocity=100,
+        exclude_author=exclude, since=since,
+    )
+    machine = velocity.median_velocity(
+        repo_path, max_velocity=10000,
+        exclude_author=exclude, since=since,
+    )
+
+    if classic is None and machine is None:
         click.echo("Not enough commit data to compute velocity.")
         return
 
-    click.echo(f"Median velocity: {med:.1f} lines/hour")
+    if classic and classic > 0:
+        click.echo(f"Intrinsic velocity: {classic:.1f} l/h")
+    else:
+        click.echo("Intrinsic velocity: insufficient data")
+
+    if machine and machine > 0:
+        click.echo(f"Machine velocity:   {machine:.1f} l/h")
+    else:
+        click.echo("Machine velocity:   insufficient data")
+
+    if classic and machine and classic > 0:
+        accel = machine / classic
+        click.echo(f"Accel factor:       x{accel:.1f}")
