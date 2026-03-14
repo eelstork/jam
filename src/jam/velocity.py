@@ -54,10 +54,12 @@ def git_in(repo_dir, *args):
     return r.stdout.strip()
 
 
-def get_commits(repo_dir, author="", exclude_author=""):
+def get_commits(repo_dir, author="", exclude_author="", since=""):
     cmd = ["log", "--format=%H %at %aN", "--no-merges"]
     if author:
         cmd += [f"--author={author}"]
+    if since:
+        cmd += [f"--since={since}"]
     excludes = (
         [e.strip().lower() for e in exclude_author.split(",") if e.strip()]
         if exclude_author else []
@@ -103,13 +105,14 @@ def clone_repo(clone_url, dest):
 
 
 def median_velocity(repo_dir, cap_hours=0, max_velocity=0,
-                    author="", exclude_author="", gross=False):
+                    author="", exclude_author="", gross=False, since=""):
     """Return the median velocity (lines/hour) for *repo_dir*, or None.
 
     When *gross* is True, uses total lines added (speed) instead of
     net lines (added - removed).
     """
-    commits = get_commits(repo_dir, author=author, exclude_author=exclude_author)
+    commits = get_commits(repo_dir, author=author, exclude_author=exclude_author,
+                          since=since)
     if len(commits) < 2:
         return None
 
