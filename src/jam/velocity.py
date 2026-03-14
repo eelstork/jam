@@ -14,6 +14,13 @@ import urllib.error
 import urllib.request
 
 
+# ── Defaults ────────────────────────────────────────────────────────────
+
+INTRINSIC_MAX_VELOCITY = 100
+MACHINE_MAX_VELOCITY = 10000
+EXCLUDE_BOTS = "bot,dependabot,renovate"
+
+
 # ── Git helpers ─────────────────────────────────────────────────────────
 
 

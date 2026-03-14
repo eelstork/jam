@@ -35,15 +35,13 @@ def velocity_cmd(name):
     label, desc, since = PERIODS[idx]
     click.echo(f"Measuring velocity ({desc.lower()}) ...")
 
-    exclude = "bot,dependabot,renovate"
-
     classic = velocity.median_velocity(
-        repo_path, max_velocity=100,
-        exclude_author=exclude, since=since,
+        repo_path, max_velocity=velocity.INTRINSIC_MAX_VELOCITY,
+        exclude_author=velocity.EXCLUDE_BOTS, since=since,
     )
     machine = velocity.median_velocity(
-        repo_path, max_velocity=10000,
-        exclude_author=exclude, since=since,
+        repo_path, max_velocity=velocity.MACHINE_MAX_VELOCITY,
+        exclude_author=velocity.EXCLUDE_BOTS, since=since,
     )
 
     if classic is None and machine is None:
