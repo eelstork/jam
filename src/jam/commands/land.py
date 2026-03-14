@@ -117,16 +117,15 @@ def _do_land(repo_path, branch):
 @click.command()
 @click.argument("name", default="")
 @click.option("--all", "land_all", is_flag=True, help="Land across all repos.")
-@click.option("--fast", is_flag=True, help="Land without confirmation.")
-def land(name, land_all, fast):
+def land(name, land_all):
     """Merge the latest branch into main."""
     if land_all:
-        _land_all(fast)
+        _land_all()
     else:
-        _land_one(name, fast)
+        _land_one(name)
 
 
-def _land_all(fast):
+def _land_all():
     jam_home = helpers.get_jam_home()
     targets = []
 
@@ -143,22 +142,13 @@ def _land_all(fast):
         click.echo(f"No repos with branches to land {helpers.jam_emoji()}")
         return
 
-    if not fast:
-        for repo_name, _, branch, commits in targets:
-            last = commits[0]
-            n = len(commits)
-            suffix = f" (+{n})" if n > 1 else ""
-            click.echo(f"  {repo_name} -- {last}{suffix}")
-        click.echo()
-        if not click.confirm("Proceed?", default=True):
-            click.echo("Aborted.")
-            return
-
     landed = 0
     for repo_name, repo_path, branch, commits in targets:
         n = len(commits)
         local_branch = branch.replace("origin/", "", 1)
         if _do_land(repo_path, branch):
+            for c in commits:
+                click.echo(f"  {c}")
             click.echo(f"Landed {n} commit{'s' if n != 1 else ''} from {local_branch} in {repo_name}.")
             landed += 1
         else:
@@ -167,7 +157,7 @@ def _land_all(fast):
     click.echo(f"Landed {landed} repo{'s' if landed != 1 else ''}.")
 
 
-def _land_one(name, fast):
+def _land_one(name):
     repo_path = helpers.resolve_repo(name or None)
 
     info = _get_landable(repo_path)
@@ -179,20 +169,9 @@ def _land_one(name, fast):
     local_branch = branch.replace("origin/", "", 1)
     n = len(commits)
 
-    if not fast:
-        click.echo(f"Landing {branch} ({n} commit{'s' if n != 1 else ''}):")
-        click.echo()
-        display = commits[:3]
-        for c in display:
-            click.echo(f"  {c}")
-        if n > 3:
-            click.echo(f"  ... and {n - 3} more")
-        click.echo()
-        if not click.confirm("Proceed?", default=True):
-            click.echo("Aborted.")
-            return
-
     if not _do_land(repo_path, branch):
         helpers.fail(f"Failed to land {local_branch}.")
 
+    for c in commits:
+        click.echo(f"  {c}")
     click.echo(f"Landed {n} commit{'s' if n != 1 else ''} from {local_branch}.")
