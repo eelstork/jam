@@ -63,3 +63,19 @@ Any command that isn't built-in gets routed to a script at the repo root. Drop a
 Target a specific repo with `jam deploy myrepo` — if the second word matches a repo in `JAM_HOME`, the script runs from that repo. Otherwise it's treated as a regular argument.
 
 Platform-aware: `.sh` is preferred on Linux/Mac, `.ps1` on Windows, `.py` everywhere. Built-in commands always take priority.
+
+## Attribution & Velocity
+
+If you use Claude Code, jam can restore your personal authorship on AI-assisted commits and optionally track coding velocity.
+
+**`jam claim-commits`** -- set up commit attribution. Removes "Claude" from AI-assisted commits so they show your name; commits remain traceable. New repos created with `jam new` or `jam clone` get attribution automatically after setup.
+[claim_commits.py](src/jam/commands/claim_commits.py)
+
+**`jam reclaim [NAME]`** -- rewrite commit history to reclaim authorship on `@anthropic.com` commits. If a velocity baseline is configured, also tags commits with velocity markers. All SHAs will change.
+[reclaim.py](src/jam/commands/reclaim.py)
+
+**`jam velocity [NAME]`** -- measure coding velocity for a repo. Shows intrinsic (human) and machine-assisted velocity with an acceleration factor. Pick a time period interactively: past week, past month, or all time.
+[velocity_cmd.py](src/jam/commands/velocity_cmd.py)
+
+**`jam autofac-reset`** -- clear all attribution and velocity config. Removes `.claude/` from the current repo and resets `claim-commits` state so the workflow can be re-run.
+[autofac_reset.py](src/jam/commands/autofac_reset.py)
