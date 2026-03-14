@@ -24,7 +24,20 @@ from jam.cli import main
 # ---------------------------------------------------------------------------
 
 def _gh_available():
-    """Return True if gh CLI is installed and authenticated."""
+    """Return True if gh CLI is installed and authenticated.
+
+    If JAM_TEST_PAT is set, authenticate gh with it first.
+    """
+    pat = os.environ.get("JAM_TEST_PAT", "")
+    if pat:
+        try:
+            subprocess.run(
+                ["gh", "auth", "login", "--with-token"],
+                input=pat, capture_output=True, text=True, timeout=10,
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            return False
+
     try:
         r = subprocess.run(
             ["gh", "auth", "status"],
@@ -38,7 +51,7 @@ def _gh_available():
 if not _gh_available():
     pytest.skip(
         "gh CLI not authenticated — skipping e2e tests. "
-        "Install gh and run 'gh auth login' to enable.",
+        "Set JAM_TEST_PAT or run 'gh auth login' to enable.",
         allow_module_level=True,
     )
 
