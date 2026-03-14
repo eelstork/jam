@@ -34,7 +34,7 @@ COMMANDS = [
     ("root",   "Show the jam root directory",      root),
     ("set-root", "Set the jam root directory",     set_root),
     ("update",   "Update jam to the latest version", update),
-    ("claim-commits", "Set up commit attribution and velocity", claim_commits),
+    ("claim-commits", "Set up commit attribution", claim_commits),
     ("reclaim", "Tag existing commits with velocity markers", reclaim),
     ("autofac-reset", "Clear velocity and attribution config", autofac_reset),
     ("velocity", "Evaluate velocity for a repo", velocity_cmd),
