@@ -670,3 +670,35 @@ def test_down_prefix_match(tmp_path):
         result = runner.invoke(main, ["down", "my-l"])
     assert result.exit_code == 0
     assert "Pulled" in result.output
+
+
+# --- cooldown ---
+
+
+def test_cooldown_shows_commits(tmp_path):
+    (tmp_path / "alpha" / ".git").mkdir(parents=True)
+    (tmp_path / "beta" / ".git").mkdir(parents=True)
+    (tmp_path / "notrepo").mkdir()
+
+    with patch("jam.helpers.run") as mock_run:
+        mock_run.side_effect = [
+            ok("abc1234 first commit\ndef5678 second commit"),  # alpha
+            ok(""),                                              # beta (no commits)
+        ]
+        runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+        result = runner.invoke(main, ["cooldown"])
+    assert result.exit_code == 0
+    assert "alpha (2)" in result.output
+    assert "first commit" in result.output
+    assert "beta" not in result.output
+
+
+def test_cooldown_no_commits(tmp_path):
+    (tmp_path / "myrepo" / ".git").mkdir(parents=True)
+
+    with patch("jam.helpers.run") as mock_run:
+        mock_run.return_value = ok("")
+        runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+        result = runner.invoke(main, ["cooldown"])
+    assert result.exit_code == 0
+    assert "No commits since 7 am" in result.output
