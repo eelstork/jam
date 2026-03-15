@@ -109,14 +109,37 @@ def get_gh_user():
     return result.stdout.strip()
 
 
+def match_repo(name):
+    """Resolve a possibly-incomplete repo name via prefix matching.
+
+    Returns the full repo name.  Fails if *name* matches nothing or is
+    ambiguous (matches more than one directory).
+    """
+    jam_home = get_jam_home()
+    exact = os.path.join(jam_home, name)
+    if os.path.isdir(exact):
+        return name
+    try:
+        entries = os.listdir(jam_home)
+    except OSError:
+        entries = []
+    candidates = sorted(
+        d for d in entries
+        if d.startswith(name) and os.path.isdir(os.path.join(jam_home, d))
+    )
+    if len(candidates) == 1:
+        return candidates[0]
+    if len(candidates) > 1:
+        fail(f"Ambiguous repo name '{name}'. Matches: {', '.join(candidates)}")
+    fail(f"Repo '{name}' not found.")
+
+
 def resolve_repo(name=None):
     """Resolve repo path from NAME or current directory."""
     jam_home = os.path.realpath(get_jam_home())
     if name:
-        repo_path = os.path.join(jam_home, name)
-        if not os.path.isdir(repo_path):
-            fail(f"Repo {name} not found at {repo_path}")
-        return repo_path
+        name = match_repo(name)
+        return os.path.join(jam_home, name)
     cwd = os.path.realpath(os.getcwd())
     if cwd == jam_home or cwd.startswith(jam_home + os.sep):
         return cwd

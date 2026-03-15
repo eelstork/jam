@@ -54,13 +54,25 @@ def _build_argv(script_path):
 
 
 def _repo_root_for(name):
-    """If *name* is a repo in JAM_HOME, return its path. Otherwise None."""
+    """If *name* (or a unique prefix) is a repo in JAM_HOME, return its path. Otherwise None."""
     jam_home = helpers.find_jam_home()
     if jam_home is None:
         return None
+    # Exact match first
     repo_path = os.path.join(jam_home, name)
     if os.path.isdir(os.path.join(repo_path, ".git")):
         return repo_path
+    # Prefix match — only if unambiguous
+    try:
+        entries = os.listdir(jam_home)
+    except OSError:
+        return None
+    candidates = [
+        d for d in entries
+        if d.startswith(name) and os.path.isdir(os.path.join(jam_home, d, ".git"))
+    ]
+    if len(candidates) == 1:
+        return os.path.join(jam_home, candidates[0])
     return None
 
 
