@@ -297,6 +297,16 @@ class TestClaimAndReclaim:
 
         repo_path = os.path.join(env.jam_home, self.repo_name)
 
+        # Since attribution_enabled was set by test_claim_commits,
+        # jam new should have written .claude/settings.json
+        settings_path = os.path.join(repo_path, ".claude", "settings.json")
+        assert os.path.isfile(settings_path), ".claude/settings.json not created"
+        import json
+        with open(settings_path) as f:
+            settings = json.load(f)
+        assert settings["attribution"]["commit"] == ""
+        assert settings["attribution"]["pr"] == ""
+
         # Set a non-anthropic identity in this repo so reclaim has a
         # real user to rewrite to (the CI global config may itself use
         # an @anthropic.com email).
