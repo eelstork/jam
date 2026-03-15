@@ -166,6 +166,7 @@ def write_repo_claude_settings(repo_path):
     if "attribution" not in settings:
         settings["attribution"] = {}
     settings["attribution"]["commit"] = ""
+    settings["attribution"]["pr"] = ""
     with open(settings_path, "w") as f:
         json.dump(settings, f, indent=2)
     return settings_path
