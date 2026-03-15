@@ -20,6 +20,7 @@ from jam.commands.reclaim import reclaim
 from jam.commands.autofac_reset import autofac_reset
 from jam.commands.velocity_cmd import velocity_cmd
 from jam.commands.edit import edit
+from jam.commands.cooldown import cooldown
 
 
 COMMANDS = [
@@ -40,6 +41,7 @@ COMMANDS = [
     ("autofac-reset", "Clear velocity and attribution config", autofac_reset),
     ("velocity", "Evaluate velocity for a repo", velocity_cmd),
     ("edit",     "Open a file in its default app", edit),
+    ("cooldown", "Show today's commits per repo",  cooldown),
 ]
 
 
@@ -117,3 +119,4 @@ main.add_command(reclaim)
 main.add_command(autofac_reset)
 main.add_command(velocity_cmd)
 main.add_command(edit)
+main.add_command(cooldown)
