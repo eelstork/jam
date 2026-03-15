@@ -28,9 +28,8 @@ def edit(filename, repo):
     jam_home = helpers.get_jam_home()
 
     if repo:
+        repo = helpers.match_repo(repo)
         repo_path = os.path.join(jam_home, repo)
-        if not os.path.isdir(repo_path):
-            helpers.fail(f"Repo {repo} not found.")
         roots = [repo_path]
     else:
         roots = sorted(

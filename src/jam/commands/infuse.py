@@ -13,18 +13,16 @@ def infuse(source, target):
     """Copy files from one repo into another."""
     jam_home = helpers.get_jam_home()
 
+    source = helpers.match_repo(source)
     src_path = os.path.join(jam_home, source)
-    if not os.path.isdir(src_path):
-        helpers.fail(f"Repo {source} not found at {src_path}")
 
     dest_subpath = None
 
     if target:
         parts = target.split("/", 1)
         target_name = parts[0]
+        target_name = helpers.match_repo(target_name)
         target_path = os.path.join(jam_home, target_name)
-        if not os.path.isdir(target_path):
-            helpers.fail(f"Repo {target_name} not found at {target_path}")
         if len(parts) == 2:
             dest_subpath = parts[1]
             full_dest = os.path.join(target_path, dest_subpath)
