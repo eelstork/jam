@@ -4,6 +4,7 @@ from unittest.mock import call, mock_open, patch
 
 from click.testing import CliRunner
 
+from jam import helpers
 from jam.cli import main
 
 
@@ -702,3 +703,57 @@ def test_cooldown_no_commits(tmp_path):
         result = runner.invoke(main, ["cooldown"])
     assert result.exit_code == 0
     assert "No commits since 7 am" in result.output
+
+
+# --- stats ---
+
+
+def test_stats_shows_counts(tmp_path):
+    log = tmp_path / "usage.log"
+    log.write_text(
+        "2026-03-15T10:00:00 up\n"
+        "2026-03-15T10:01:00 up\n"
+        "2026-03-15T10:02:00 down\n"
+        "2026-03-15T10:03:00 up\n"
+    )
+    with patch("jam.helpers._usage_log_path", return_value=str(log)):
+        runner = CliRunner()
+        result = runner.invoke(main, ["stats"])
+    assert result.exit_code == 0
+    lines = result.output.strip().splitlines()
+    # most used first
+    assert "up" in lines[0]
+    assert "3" in lines[0]
+    assert "down" in lines[1]
+    assert "1" in lines[1]
+
+
+def test_stats_no_data(tmp_path):
+    log = tmp_path / "usage.log"
+    with patch("jam.helpers._usage_log_path", return_value=str(log)):
+        runner = CliRunner()
+        result = runner.invoke(main, ["stats"])
+    assert result.exit_code == 0
+    assert "No usage data" in result.output
+
+
+def test_stats_clear(tmp_path):
+    log = tmp_path / "usage.log"
+    log.write_text("2026-03-15T10:00:00 up\n")
+    with patch("jam.helpers._usage_log_path", return_value=str(log)):
+        runner = CliRunner()
+        result = runner.invoke(main, ["stats", "--clear"])
+    assert result.exit_code == 0
+    assert "cleared" in result.output
+    assert not log.exists()
+
+
+def test_log_command_writes_to_log(tmp_path):
+    log = tmp_path / "usage.log"
+    with patch("jam.helpers._usage_log_path", return_value=str(log)):
+        helpers.log_command("up")
+        helpers.log_command("down")
+    content = log.read_text()
+    assert "up\n" in content
+    assert "down\n" in content
+    assert len(content.splitlines()) == 2
