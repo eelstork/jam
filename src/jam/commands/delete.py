@@ -11,10 +11,8 @@ from jam import helpers
 def delete(name):
     """Delete a repo locally. Tags the remote for later cleanup."""
     jam_home = helpers.get_jam_home()
+    name = helpers.match_repo(name)
     repo_path = os.path.join(jam_home, name)
-
-    if not os.path.isdir(repo_path):
-        helpers.fail(f"Repo {name} not found at {repo_path}")
 
     if not click.confirm(f"Delete local copy of {name}?"):
         click.echo("Aborted.")

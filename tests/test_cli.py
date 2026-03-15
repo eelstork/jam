@@ -596,3 +596,77 @@ def test_set_root_nonexistent_dir():
     result = runner.invoke(main, ["set-root", "/no/such/path"])
     assert result.exit_code != 0
     assert "does not exist" in (result.output + (result.stderr or ""))
+
+
+# --- match_repo ---
+
+
+def test_match_repo_exact(tmp_path):
+    (tmp_path / "my-project").mkdir()
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    from jam.helpers import match_repo
+    with patch.dict(os.environ, {"JAM_HOME": str(tmp_path)}):
+        assert match_repo("my-project") == "my-project"
+
+
+def test_match_repo_prefix(tmp_path):
+    (tmp_path / "my-project").mkdir()
+    with patch.dict(os.environ, {"JAM_HOME": str(tmp_path)}):
+        from jam.helpers import match_repo
+        assert match_repo("my-p") == "my-project"
+
+
+def test_match_repo_ambiguous(tmp_path):
+    (tmp_path / "my-project").mkdir()
+    (tmp_path / "my-package").mkdir()
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    from jam.helpers import match_repo
+    with patch.dict(os.environ, {"JAM_HOME": str(tmp_path)}):
+        try:
+            match_repo("my-p")
+            assert False, "Should have failed"
+        except SystemExit:
+            pass  # helpers.fail calls sys.exit
+
+
+def test_match_repo_not_found(tmp_path):
+    (tmp_path / "other-repo").mkdir()
+    from jam.helpers import match_repo
+    with patch.dict(os.environ, {"JAM_HOME": str(tmp_path)}):
+        try:
+            match_repo("nope")
+            assert False, "Should have failed"
+        except SystemExit:
+            pass
+
+
+def test_delete_prefix_match(tmp_path):
+    """jam delete with a prefix should resolve to the full repo name."""
+    repo = tmp_path / "my-long-name"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+    (repo / "file.txt").write_text("data")
+
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    with patch("jam.helpers.run") as mock_run:
+        mock_run.return_value = ok()
+        result = runner.invoke(main, ["delete", "my-l"], input="y\n")
+    assert result.exit_code == 0
+    assert "Deleted my-long-name locally" in result.output
+    assert not repo.exists()
+
+
+def test_down_prefix_match(tmp_path):
+    """jam down with a prefix should resolve to the full repo name."""
+    repo = tmp_path / "my-long-name"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    with patch("jam.helpers.save_breadcrumb"), \
+         patch("jam.helpers.get_head", return_value="abc1234"), \
+         patch("jam.helpers.run") as mock_run:
+        mock_run.return_value = ok()
+        result = runner.invoke(main, ["down", "my-l"])
+    assert result.exit_code == 0
+    assert "Pulled" in result.output

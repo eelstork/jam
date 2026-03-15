@@ -16,9 +16,8 @@ def clone(source, target, description, public):
     jam_home = helpers.get_jam_home()
     user = helpers.get_gh_user()
 
+    source = helpers.match_repo(source)
     source_path = os.path.join(jam_home, source)
-    if not os.path.isdir(source_path):
-        helpers.fail(f"Source repo {source} not found at {source_path}")
 
     result = helpers.run(f"gh repo view {user}/{target}")
     if result.returncode == 0:
