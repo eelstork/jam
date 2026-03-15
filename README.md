@@ -47,6 +47,15 @@ Or set the `JAM_HOME` environment variable if you prefer.
 **`jam delete NAME`** -- remove a repo locally. Tags the remote for later cleanup. Re-clone from GitHub to recover.
 [delete.py](src/jam/commands/delete.py)
 
+**`jam edit FILENAME [REPO]`** -- open a file in its default application. If no repo is given, searches all repos. If multiple matches are found, pick interactively.
+[edit.py](src/jam/commands/edit.py)
+
+**`jam cooldown`** -- list today's commits (since 7 am) per repo. Quick end-of-day recap.
+[cooldown.py](src/jam/commands/cooldown.py)
+
+**`jam stats`** -- show command usage counts, most used first. Every command invocation is logged locally to `~/.config/jam/usage.log`. `--clear` discards the log.
+[stats.py](src/jam/commands/stats.py)
+
 **`jam root`** -- print the current jam root directory.
 [root.py](src/jam/commands/root.py)
 
@@ -55,6 +64,10 @@ Or set the `JAM_HOME` environment variable if you prefer.
 
 **`jam update`** -- pull the latest jam source and reinstall. Runs `git pull` + `pip install -e .` from wherever jam is installed.
 [update.py](src/jam/commands/update.py)
+
+## Prefix matching
+
+Repo names can be abbreviated. If the prefix is unambiguous, jam resolves it automatically — `jam up -n my-p` works if `my-project` is the only repo starting with `my-p`. Ambiguous prefixes show matching candidates.
 
 ## Command passthrough
 

@@ -274,6 +274,35 @@ class TestLifecycle:
         assert not os.path.isdir(repo2_path)
 
 
+class TestCooldownAndStats:
+    """Test cooldown and stats commands."""
+
+    def test_cooldown(self, env):
+        # TestLifecycle already pushed commits — cooldown should either
+        # list them (if after 7am) or print the empty message.
+        result = env.runner.invoke(main, ["cooldown"])
+        assert result.exit_code == 0, result.output
+        # We can't assert specific output since it depends on time of day,
+        # but it must not crash.
+
+    def test_stats(self, env):
+        # Previous test invocations should have been logged.
+        result = env.runner.invoke(main, ["stats"])
+        assert result.exit_code == 0, result.output
+        # We've run many commands already, so stats shouldn't be empty.
+        assert "No usage data" not in result.output
+
+    def test_stats_clear(self, env):
+        result = env.runner.invoke(main, ["stats", "--clear"])
+        assert result.exit_code == 0, result.output
+        assert "cleared" in result.output
+
+        # After clearing, stats should show no data.
+        result = env.runner.invoke(main, ["stats"])
+        assert result.exit_code == 0, result.output
+        assert "No usage data" in result.output
+
+
 class TestClaimAndReclaim:
     """Test claim-commits and reclaim workflows."""
 
