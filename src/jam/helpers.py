@@ -72,6 +72,19 @@ def _config_dir():
     return os.path.join(os.path.expanduser("~"), ".config", "jam")
 
 
+def _usage_log_path():
+    return os.path.join(_config_dir(), "usage.log")
+
+
+def log_command(name):
+    """Append a timestamped command invocation to the usage log."""
+    from datetime import datetime
+    path = _usage_log_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "a") as f:
+        f.write(f"{datetime.now().isoformat()} {name}\n")
+
+
 def _root_file():
     return os.path.join(_config_dir(), "root")
 
