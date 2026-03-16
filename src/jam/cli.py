@@ -20,6 +20,8 @@ from jam.commands.reclaim import reclaim
 from jam.commands.autofac_reset import autofac_reset
 from jam.commands.velocity_cmd import velocity_cmd
 from jam.commands.edit import edit
+from jam.commands.cooldown import cooldown
+from jam.commands.stats import stats
 
 
 COMMANDS = [
@@ -40,22 +42,29 @@ COMMANDS = [
     ("autofac-reset", "Clear velocity and attribution config", autofac_reset),
     ("velocity", "Evaluate velocity for a repo", velocity_cmd),
     ("edit",     "Open a file in its default app", edit),
+    ("cooldown", "Show today's commits per repo",  cooldown),
+    ("stats",    "Show command usage stats",       stats),
 ]
 
 
 class _JamGroup(click.Group):
     """Click group that falls back to repo-root scripts."""
 
+    _NO_LOG = {"stats"}
+
     def get_command(self, ctx, cmd_name):
         # Built-in commands take priority.
         cmd = super().get_command(ctx, cmd_name)
         if cmd is not None:
+            if cmd_name not in self._NO_LOG:
+                helpers.log_command(cmd_name)
             return cmd
 
         # Defer script resolution to the command itself — we don't know
         # yet whether the user is targeting a named repo or the cwd.
         from jam.commands.run_script import make_command
 
+        helpers.log_command(cmd_name)
         return make_command(cmd_name)
 
 
@@ -117,3 +126,5 @@ main.add_command(reclaim)
 main.add_command(autofac_reset)
 main.add_command(velocity_cmd)
 main.add_command(edit)
+main.add_command(cooldown)
+main.add_command(stats)
