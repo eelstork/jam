@@ -26,6 +26,15 @@ def reclaim(name):
         if not repo_path:
             helpers.fail("Not in a git repo. Provide a repo name or cd into one.")
 
+    # Clean up any stale refs/original/ from a previous run — these are
+    # backup refs created by git filter-branch that cause git log --all
+    # to see old (unrewritten) commits, making reclaim non-idempotent.
+    helpers.run(
+        "git for-each-ref --format='delete %(refname)' refs/original/ | "
+        "git update-ref --stdin",
+        cwd=repo_path,
+    )
+
     baseline = helpers.get_jam_config("baseline_velocity")
 
     # Velocity tagging is optional — only compute tags if a baseline exists
@@ -33,6 +42,17 @@ def reclaim(name):
         tags = velocity.commit_velocities(repo_path, baseline)
     else:
         tags = {}
+
+    # Filter out commits whose messages already have velocity tags
+    if tags:
+        result = helpers.run(
+            "git log --all --format=%H:%s", cwd=repo_path,
+        )
+        for line in result.stdout.strip().splitlines():
+            sha, _, subject = line.partition(":")
+            first = subject.rstrip()
+            if sha in tags and "[x" in first and first.endswith("]"):
+                del tags[sha]
 
     # Count commits eligible for authorship reclaim
     result = helpers.run(
