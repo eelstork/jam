@@ -1,20 +1,18 @@
 # Jam 🍯
 
-Opinionated Git wrapper written mainly for Claude Code users; not intended for team use.
+Opinionated cross platform Git wrapper written mainly for Claude Code (CC) users; not intended for team use.
 
 I use `jam land REPO` every day; skips the ritualistic git flow that doesn't work when constantly
-switching project and mainly retesting features; no need to create a branch in CC web UI. I recommend the web
-UI (vs terminal) because this provides a clean dev env. Retesting on own machine then validates less pristine
-deployment.
+switching project and mainly retesting features; no need to create a branch in CC web UI. 
+
+I do not know how you would benefit or not when using CC in the terminal; I like the web-UI because this provides a clean nix based dev env; then I retest (and test GUIs) on my local, providing a less pristine, bumpier (Windows based) environment.
 
 `reclaim` (remove CC ads), `retro`, `standup` and `cooldown` (track weekly/daily work) are other commands I do enjoy.
 
-Jam keeps all your repos under one roof (`JAM_HOME`) and talks to GitHub via `gh`. No config files, no boilerplate. 
-The stuff you actually do, made fast.
+Jam keeps all your repos under one roof (`JAM_HOME`) and talks to GitHub via `gh`. No config files, no boilerplate. The stuff you actually do, made fast.
 
 Requires Python 3.10+, [git](https://git-scm.com), and [gh](https://cli.github.com) (authenticated).
-If you're a github user, of course you already have them installed. Note: jam is not a substitute for knowing
-and understanding git (or at least, I don't think so).
+If you're a github user, of course you already have them installed. Note: I do not believe jam a substitute for knowing and understanding git.
 
 Install via `pip install git+https://github.com/eelstork/jam.git`. To develop locally, clone the repo and use `pip install -e .` or `python install.py`. To remove: `pip uninstall jam`.
 
