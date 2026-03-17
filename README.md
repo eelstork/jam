@@ -35,22 +35,22 @@ Or set the `JAM_HOME` environment variable if you prefer.
 🔺**`jam new NAME ["DESCRIPTION"]`** -- spin up a repo on GitHub, clone it locally, push a readme. `--public` to make it public. Alias: `jam create`.
 [new.py](src/jam/commands/new.py)
 
-**`jam clone SOURCE TARGET ["DESCRIPTION"]`** -- copy a repo as a brand new repo. Fresh git history, new GitHub remote. Great for templates. `--public` to make it public.
+🔺**`jam clone SOURCE TARGET ["DESCRIPTION"]`** -- copy a repo as a brand new repo. Fresh git history, new GitHub remote. Great for templates. `--public` to make it public.
 [clone.py](src/jam/commands/clone.py)
 
-**`jam list`** -- see what you've got. `--info` pulls the first line from each readme.
+🟡**`jam list`** -- see what you've got. `--info` pulls the first line from each readme.
 [list.py](src/jam/commands/list.py)
 
 🔺**`jam up "MESSAGE"`** -- add everything, commit, push. One shot. `--name REPO` to target a specific repo, `--force` if you need it.
 [up.py](src/jam/commands/up.py)
 
-**`jam down [NAME]`** -- pull latest. `--force` throws away local changes first.
+🔷**`jam down [NAME]`** -- pull latest. `--force` throws away local changes first.
 [down.py](src/jam/commands/down.py)
 
 🔺**`jam land [NAME]`** -- merge the most recent branch into main and show all landed commits. `--all` lands across all repos at once.
 [land.py](src/jam/commands/land.py)
 
-**`jam infuse SOURCE --into TARGET`** -- drop files from one repo into another, auto-commits the result. Bails if anything would overwrite. Also works with a subpath: `jam infuse snippets --into myapp/vendor/ext`. Or just `jam infuse SOURCE` from inside the target repo.
+🔷**`jam infuse SOURCE --into TARGET`** -- drop files from one repo into another, auto-commits the result. Bails if anything would overwrite. Also works with a subpath: `jam infuse snippets --into myapp/vendor/ext`. Or just `jam infuse SOURCE` from inside the target repo.
 [infuse.py](src/jam/commands/infuse.py)
 
 🔷**`jam undo [NAME]`** -- reverse the last jam command on a repo. Works with `up`, `down`, `land`, and `infuse`.
