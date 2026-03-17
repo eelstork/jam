@@ -1,5 +1,13 @@
 # Jam 🍯
 
+`pip install git+https://github.com/eelstork/jam.git`
+
+dev: clone and use `pip install -e .` or `python install.py`
+
+`pip uninstall jam` to uninstall
+
+---
+
 Opinionated Git wrapper written mainly for Claude Code users; not intended for team use.
 
 I use `jam land REPO` every day; skips the ritualistic git flow that doesn't work when constantly
@@ -9,14 +17,12 @@ deployment.
 
 `reclaim` (remove CC ads), `retro`, `standup` and `cooldown` (track weekly/daily work) are other commands I do enjoy.
 
-Jam keeps all your repos under one roof (`JAM_HOME`) and talks to GitHub via `gh`. No config files, no boilerplate. 
+Jam keeps all your repos under one roof (`JAM_HOME`) and talks to GitHub via `gh`. No config files, no boilerplate.
 The stuff you actually do, made fast.
 
 Requires Python 3.10+, [git](https://git-scm.com), and [gh](https://cli.github.com) (authenticated).
 If you're a github user, of course you already have them installed. Note: jam is not a substitute for knowing
 and understanding git (or at least, I don't think so).
-
-Install via `pip install git+https://github.com/eelstork/jam.git`. To develop locally, clone the repo and use `pip install -e .` or `python install.py`. To remove: `pip uninstall jam`.
 
 In the doc: 🔺local/remote changes; 🔷local changes only; 🟡informative or config command
 
