@@ -244,26 +244,6 @@ class TestLifecycle:
         # Should have the README from the source
         assert os.path.isfile(os.path.join(repo2_path, "README.md"))
 
-    # -- infuse -------------------------------------------------------------
-
-    def test_infuse(self, env):
-        # Add a unique file to repo1
-        repo_path = os.path.join(env.jam_home, self.repo_name)
-        with open(os.path.join(repo_path, "snippet.txt"), "w") as f:
-            f.write("snippet\n")
-        subprocess.run("git add -A", shell=True, cwd=repo_path)
-        subprocess.run('git commit -m "add snippet"', shell=True, cwd=repo_path)
-
-        # Use a subpath to avoid conflicts with files shared via clone
-        result = env.runner.invoke(
-            main, ["infuse", self.repo_name, "--into", f"{self.repo2_name}/imported"],
-        )
-        assert result.exit_code == 0, result.output
-        assert "Infused" in result.output
-
-        repo2_path = os.path.join(env.jam_home, self.repo2_name)
-        assert os.path.isfile(os.path.join(repo2_path, "imported", "snippet.txt"))
-
     # -- delete -------------------------------------------------------------
 
     def test_delete(self, env):

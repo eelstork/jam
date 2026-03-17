@@ -17,7 +17,7 @@ def undo(name):
     action = crumb["action"]
     pre_head = crumb.get("pre_head")
 
-    if action in ("up", "down", "land", "infuse"):
+    if action in ("up", "down", "land"):
         if not pre_head:
             helpers.fail(f"Cannot undo {action}: no previous HEAD recorded.")
 
