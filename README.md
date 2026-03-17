@@ -1,10 +1,20 @@
-# jam
+# Jam
 
-Git without the ceremony. Create repos, push code, land branches -- all in a few keystrokes.
+Opinionated Git wrapper written mainly for Claude Code users; not intended for team use.
 
-Jam keeps all your repos under one roof (`JAM_HOME`) and talks to GitHub via `gh`. No config files, no boilerplate. Just the stuff you actually do, made fast.
+I use `jam land REPO` every day; skips the ritualistic git flow that doesn't work when constantly
+switching project and mainly retesting features; no need to create a branch in CC web UI. I recommend the web
+UI (vs terminal) because this provides a clean dev env. Retesting on own machine then validates less pristine
+deployment.
+
+`reclaim` (remove CC ads), `retro`, `standup` and `cooldown` (track weekly/daily work) are other commands I do enjoy.
+
+Jam keeps all your repos under one roof (`JAM_HOME`) and talks to GitHub via `gh`. No config files, no boilerplate. 
+The stuff you actually do, made fast.
 
 Requires Python 3.10+, [git](https://git-scm.com), and [gh](https://cli.github.com) (authenticated).
+If you're a github user, of course you already have them installed. Note: jam is not a substitute for knowing
+and understanding git (or at least, I don't think so).
 
 Install via `python install.py`, or `pip install -e .` if you prefer the standard Python way. To remove: `python uninstall.py`.
 
