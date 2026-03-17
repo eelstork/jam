@@ -6,7 +6,6 @@ from jam import helpers
 from jam.commands.clone import clone
 from jam.commands.delete import delete
 from jam.commands.down import down
-from jam.commands.infuse import infuse
 from jam.commands.land import land
 from jam.commands.list import list_repos
 from jam.commands.new import new
@@ -33,7 +32,6 @@ COMMANDS = [
     ("up",     "Add all, commit, and push",        up),
     ("down",   "Pull latest changes",              down),
     ("land",   "Merge the latest branch into main", land),
-    ("infuse", "Copy files from one repo into another", infuse),
     ("undo",   "Undo the last jam command",        undo),
     ("delete", "Delete a repo locally",            delete),
     ("root",   "Show the jam root directory",      root),
@@ -119,7 +117,6 @@ main.add_command(list_repos)
 main.add_command(up)
 main.add_command(down)
 main.add_command(land)
-main.add_command(infuse)
 main.add_command(undo)
 main.add_command(delete)
 main.add_command(root)
