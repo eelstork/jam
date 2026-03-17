@@ -734,6 +734,84 @@ def test_cooldown_no_commits(tmp_path):
     assert "No commits since 7 am" in result.output
 
 
+# --- standup ---
+
+
+def test_standup_shows_commits(tmp_path):
+    (tmp_path / "alpha" / ".git").mkdir(parents=True)
+
+    with patch("jam.helpers.run") as mock_run:
+        mock_run.return_value = ok("abc1234 fix thing")
+        runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+        result = runner.invoke(main, ["standup"])
+    assert result.exit_code == 0
+    assert "alpha (1)" in result.output
+    assert "fix thing" in result.output
+    # Verify the --since flag references yesterday
+    since_arg = mock_run.call_args_list[0][0][0]
+    assert "--since=" in since_arg
+
+
+def test_standup_no_commits(tmp_path):
+    (tmp_path / "myrepo" / ".git").mkdir(parents=True)
+
+    with patch("jam.helpers.run") as mock_run:
+        mock_run.return_value = ok("")
+        runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+        result = runner.invoke(main, ["standup"])
+    assert result.exit_code == 0
+    assert "No commits since 7 am yesterday" in result.output
+
+
+# --- retro ---
+
+
+def test_retro_shows_commits(tmp_path):
+    (tmp_path / "alpha" / ".git").mkdir(parents=True)
+    (tmp_path / "beta" / ".git").mkdir(parents=True)
+
+    with patch("jam.helpers.run") as mock_run:
+        mock_run.side_effect = [
+            ok("aaa1111 monday work\nbbb2222 tuesday work"),
+            ok("ccc3333 beta fix"),
+        ]
+        runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+        result = runner.invoke(main, ["retro"])
+    assert result.exit_code == 0
+    assert "alpha (2)" in result.output
+    assert "beta (1)" in result.output
+
+
+def test_retro_no_commits(tmp_path):
+    (tmp_path / "myrepo" / ".git").mkdir(parents=True)
+
+    with patch("jam.helpers.run") as mock_run:
+        mock_run.return_value = ok("")
+        runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+        result = runner.invoke(main, ["retro"])
+    assert result.exit_code == 0
+    assert "No commits in the past week" in result.output
+
+
+def test_retro_cutoff_is_monday(tmp_path):
+    """The retro cutoff should be a Monday at 7am, at least 7 days ago."""
+    from datetime import datetime, timedelta
+
+    today = datetime.now()
+    week_ago = today - timedelta(days=7)
+    expected_monday = week_ago - timedelta(days=week_ago.weekday())
+    expected_since = expected_monday.replace(hour=7, minute=0, second=0).strftime("%Y-%m-%d %H:%M")
+
+    (tmp_path / "repo" / ".git").mkdir(parents=True)
+
+    with patch("jam.helpers.run") as mock_run:
+        mock_run.return_value = ok("")
+        runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+        runner.invoke(main, ["retro"])
+    since_arg = mock_run.call_args_list[0][0][0]
+    assert expected_since in since_arg
+
+
 # --- stats ---
 
 
