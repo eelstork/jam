@@ -16,7 +16,7 @@ Requires Python 3.10+, [git](https://git-scm.com), and [gh](https://cli.github.c
 If you're a github user, of course you already have them installed. Note: jam is not a substitute for knowing
 and understanding git (or at least, I don't think so).
 
-Install via `python install.py`, or `pip install -e .` if you prefer the standard Python way. To remove: `python uninstall.py`.
+Install via `pip install git+https://github.com/eelstork/jam.git`. To develop locally, clone the repo and use `pip install -e .` or `python install.py`. To remove: `pip uninstall jam`.
 
 In the doc: 🔺local/remote changes; 🔷local changes only; 🟡informative or config command
 
