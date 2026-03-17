@@ -128,28 +128,40 @@ def _land_all():
         repo_path = os.path.join(jam_home, entry)
         if not os.path.isdir(os.path.join(repo_path, ".git")):
             continue
+        click.echo(".", nl=False)
         info = _get_landable(repo_path)
         if info:
             branch, commits = info
             targets.append((entry, repo_path, branch, commits))
 
+    click.echo()  # newline after dots
+
     if not targets:
         click.echo(f"No repos with branches to land {helpers.jam_emoji()}")
         return
 
-    landed = 0
+    landed = []
+    failed = []
     for repo_name, repo_path, branch, commits in targets:
-        n = len(commits)
         local_branch = branch.replace("origin/", "", 1)
+        click.echo(".", nl=False)
         if _do_land(repo_path, branch):
-            for c in commits:
-                click.echo(f"  {c}")
-            click.echo(f"Landed {n} commit{'s' if n != 1 else ''} from {local_branch} in {repo_name}.")
-            landed += 1
+            landed.append((repo_name, local_branch, commits))
         else:
-            click.echo(f"Failed to land {local_branch} in {repo_name}.")
+            failed.append((repo_name, local_branch))
 
-    click.echo(f"Landed {landed} repo{'s' if landed != 1 else ''}.")
+    click.echo()  # newline after dots
+
+    for repo_name, local_branch, commits in landed:
+        for c in commits:
+            click.echo(f"  {c}")
+        n = len(commits)
+        click.echo(f"Landed {n} commit{'s' if n != 1 else ''} from {local_branch} in {repo_name}.")
+
+    for repo_name, local_branch in failed:
+        click.echo(f"Failed to land {local_branch} in {repo_name}.")
+
+    click.echo(f"Landed {len(landed)} repo{'s' if len(landed) != 1 else ''}.")
 
 
 def _land_one(name):
