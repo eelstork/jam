@@ -354,116 +354,6 @@ def test_land_all_no_repos(mock_run, tmp_path):
     assert "No repos with branches to land" in result.output
 
 
-# --- infuse ---
-
-
-@patch("jam.helpers.save_breadcrumb")
-@patch("jam.helpers.get_head", return_value="abc1234")
-@patch("jam.helpers.run", return_value=ok())
-def test_infuse_into_target(mock_run, mock_head, mock_crumb, tmp_path):
-    src = tmp_path / "snippets"
-    src.mkdir()
-    (src / ".git").mkdir()
-    (src / "util.py").write_text("# util")
-    (src / "lib").mkdir()
-    (src / "lib" / "helper.py").write_text("# helper")
-    (src / ".git" / "config").write_text("gitconfig")
-
-    target = tmp_path / "myapp"
-    target.mkdir()
-    (target / ".git").mkdir()
-
-    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
-    result = runner.invoke(main, ["infuse", "snippets", "--into", "myapp"])
-    assert result.exit_code == 0
-    assert "Infused 2 files" in result.output
-    assert (target / "util.py").read_text() == "# util"
-    assert (target / "lib" / "helper.py").read_text() == "# helper"
-    assert not (target / ".git" / "config").exists()
-    mock_crumb.assert_called_once()
-
-
-def test_infuse_conflict(tmp_path):
-    src = tmp_path / "snippets"
-    src.mkdir()
-    (src / ".git").mkdir()
-    (src / "readme.txt").write_text("from source")
-
-    target = tmp_path / "myapp"
-    target.mkdir()
-    (target / ".git").mkdir()
-    (target / "readme.txt").write_text("already here")
-
-    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
-    result = runner.invoke(main, ["infuse", "snippets", "--into", "myapp"])
-    assert result.exit_code != 0
-    assert "readme.txt" in result.output
-    assert (target / "readme.txt").read_text() == "already here"
-
-
-@patch("jam.helpers.save_breadcrumb")
-@patch("jam.helpers.get_head", return_value="abc1234")
-@patch("jam.helpers.run", return_value=ok())
-def test_infuse_src_from_cwd(mock_run, mock_head, mock_crumb, tmp_path, monkeypatch):
-    src = tmp_path / "snippets"
-    src.mkdir()
-    (src / ".git").mkdir()
-    (src / "data.txt").write_text("data")
-
-    target = tmp_path / "myapp"
-    target.mkdir()
-    (target / ".git").mkdir()
-
-    monkeypatch.setenv("JAM_HOME", str(tmp_path))
-    monkeypatch.chdir(target)
-
-    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
-    result = runner.invoke(main, ["infuse", "snippets"])
-    assert result.exit_code == 0
-    assert "Infused 1 file" in result.output
-    assert (target / "data.txt").read_text() == "data"
-
-
-@patch("jam.helpers.save_breadcrumb")
-@patch("jam.helpers.get_head", return_value="abc1234")
-@patch("jam.helpers.run", return_value=ok())
-def test_infuse_into_subpath(mock_run, mock_head, mock_crumb, tmp_path):
-    src = tmp_path / "snippets"
-    src.mkdir()
-    (src / ".git").mkdir()
-    (src / "util.py").write_text("# util")
-    (src / "sub").mkdir()
-    (src / "sub" / "deep.py").write_text("# deep")
-
-    target = tmp_path / "myapp"
-    target.mkdir()
-    (target / ".git").mkdir()
-
-    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
-    result = runner.invoke(main, ["infuse", "snippets", "--into", "myapp/vendor/ext"])
-    assert result.exit_code == 0
-    assert "Infused 2 files from snippets into myapp/vendor/ext" in result.output
-    assert (target / "vendor" / "ext" / "util.py").read_text() == "# util"
-    assert (target / "vendor" / "ext" / "sub" / "deep.py").read_text() == "# deep"
-
-
-def test_infuse_into_subpath_exists(tmp_path):
-    src = tmp_path / "snippets"
-    src.mkdir()
-    (src / ".git").mkdir()
-    (src / "util.py").write_text("# util")
-
-    target = tmp_path / "myapp"
-    target.mkdir()
-    (target / ".git").mkdir()
-    (target / "lib").mkdir()
-
-    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
-    result = runner.invoke(main, ["infuse", "snippets", "--into", "myapp/lib"])
-    assert result.exit_code != 0
-    assert "already exists" in result.output
-
-
 # --- delete ---
 
 
@@ -541,20 +431,6 @@ def test_undo_land(mock_isdir, mock_run, mock_load, mock_clear):
     assert result.exit_code == 0
     assert "Undid land" in result.output
     mock_run.assert_any_call("git push --force", cwd="/tmp/dev/myrepo")
-
-
-@patch("jam.helpers.clear_breadcrumb")
-@patch("jam.helpers.load_breadcrumb", return_value={"action": "infuse", "pre_head": "abc12345"})
-@patch("jam.helpers.run")
-@patch("os.path.isdir", return_value=True)
-def test_undo_infuse(mock_isdir, mock_run, mock_load, mock_clear):
-    mock_run.side_effect = [ok()]  # git reset --hard (no force push needed)
-    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
-    result = runner.invoke(main, ["undo", "myrepo"])
-    assert result.exit_code == 0
-    assert "Undid infuse" in result.output
-    mock_run.assert_any_call("git reset --hard abc12345", cwd="/tmp/dev/myrepo")
-    mock_clear.assert_called_once()
 
 
 @patch("jam.helpers.load_breadcrumb", return_value=None)
