@@ -50,9 +50,6 @@ Or set the `JAM_HOME` environment variable if you prefer.
 🔺**`jam land [NAME]`** -- merge the most recent branch into main and show all landed commits. `--all` lands across all repos at once.
 [land.py](src/jam/commands/land.py)
 
-🔷**`jam infuse SOURCE --into TARGET`** -- drop files from one repo into another, auto-commits the result. Bails if anything would overwrite. Also works with a subpath: `jam infuse snippets --into myapp/vendor/ext`. Or just `jam infuse SOURCE` from inside the target repo.
-[infuse.py](src/jam/commands/infuse.py)
-
 🔷**`jam undo [NAME]`** -- reverse the last jam command on a repo. Works with `up`, `down`, `land`, and `infuse`.
 [undo.py](src/jam/commands/undo.py)
 
