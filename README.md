@@ -1,4 +1,4 @@
-# Jam
+# Jam 🍯
 
 Opinionated Git wrapper written mainly for Claude Code users; not intended for team use.
 
