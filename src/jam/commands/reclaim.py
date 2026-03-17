@@ -139,7 +139,7 @@ if n % 10 == 0:
         env_script = env_filter_file.name.replace("\\", "/")
         result = helpers.run(
             f"git filter-branch -f"
-            f" --env-filter '. {env_script}'"
+            f' --env-filter ". \'{env_script}\'"'
             f" --msg-filter \"'{python}' '{script}'\""
             f" -- --all",
             cwd=repo_path,
