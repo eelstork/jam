@@ -64,7 +64,7 @@ def reclaim(name):
         parts.append(f"{len(tags)} commit(s) to tag")
     click.echo(f"Found {', '.join(parts)} in {os.path.basename(repo_path)}.")
     click.echo()
-    click.echo("This will rewrite commit history. All commit SHAs will change.")
+    click.echo("This will rewrite commit history. Commit SHAs may change.")
     choice = click.prompt(
         "Proceed?",
         type=click.Choice(["yes", "no"], case_sensitive=False),
