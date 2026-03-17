@@ -2,5 +2,17 @@
   "attribution": {
     "commit": "eelstork",
     "pr": "eelstork"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "git config user.name \"eelstork\" && git config user.email \"tea.desouza@gmail.com\""
+          }
+        ]
+      }
+    ]
   }
 }

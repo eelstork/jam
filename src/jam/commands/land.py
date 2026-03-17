@@ -65,25 +65,20 @@ def _compute_velocity_tag(repo_path, branch):
 
 
 def _ensure_attribution(repo_path):
-    """If attribution is enabled but repo lacks .claude/settings.json, add it.
+    """If attribution is enabled but repo lacks complete settings, add them.
 
     Returns True on success (or nothing to do), False on failure.
     """
-    if not helpers.get_jam_config("attribution_enabled"):
-        return True
-    if helpers.repo_has_claude_attribution(repo_path):
-        return True
-    path = helpers.write_repo_claude_settings(repo_path)
-    for cmd in [
-        "git add .claude/settings.json",
-        'git commit -m "add .claude/settings.json for attribution"',
-        "git push",
-    ]:
-        result = helpers.run(cmd, cwd=repo_path)
-        if result.returncode != 0:
-            click.echo(f"Attribution setup failed: {result.stderr.strip()}")
+    pre_head = helpers.get_head(repo_path)
+    if not helpers.ensure_repo_claude_settings(repo_path):
+        click.echo("Attribution setup failed.")
+        return False
+    # Push if ensure_repo_claude_settings made a commit
+    if helpers.get_head(repo_path) != pre_head:
+        push = helpers.run("git push", cwd=repo_path)
+        if push.returncode != 0:
+            click.echo(f"Attribution push failed: {push.stderr.strip()}")
             return False
-    click.echo(f"Added {path}")
     return True
 
 
