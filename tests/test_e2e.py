@@ -320,6 +320,10 @@ class TestClaimAndReclaim:
         ).stdout.strip()
         assert settings["attribution"]["commit"] == git_name
         assert settings["attribution"]["pr"] == git_name
+        # $schema should be present and first key
+        assert settings.get("$schema") == "https://json.schemastore.org/claude-code-settings.json"
+        keys = list(settings.keys())
+        assert keys[0] == "$schema", f"$schema should be first key, got {keys}"
 
         # Set a non-anthropic identity in this repo so reclaim has a
         # real user to rewrite to (the CI global config may itself use

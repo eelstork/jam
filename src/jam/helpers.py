@@ -210,8 +210,11 @@ def write_repo_claude_settings(repo_path):
     git_name = _git_user_name(cwd=repo_path)
     settings["attribution"]["commit"] = git_name
     settings["attribution"]["pr"] = git_name
+    # Ensure $schema is first by rebuilding the dict with it at the top
+    ordered = {"$schema": "https://json.schemastore.org/claude-code-settings.json"}
+    ordered.update(settings)
     with open(settings_path, "w") as f:
-        json.dump(settings, f, indent=2)
+        json.dump(ordered, f, indent=2)
     return settings_path
 
 
