@@ -21,6 +21,8 @@ from jam.commands.autofac_reset import autofac_reset
 from jam.commands.velocity_cmd import velocity_cmd
 from jam.commands.edit import edit
 from jam.commands.cooldown import cooldown
+from jam.commands.standup import standup
+from jam.commands.retro import retro
 from jam.commands.stats import stats
 
 
@@ -43,6 +45,8 @@ COMMANDS = [
     ("velocity", "Evaluate velocity for a repo", velocity_cmd),
     ("edit",     "Open a file in its default app", edit),
     ("cooldown", "Show today's commits per repo",  cooldown),
+    ("standup",  "Show yesterday's commits per repo", standup),
+    ("retro",    "Show past week's commits per repo", retro),
     ("stats",    "Show command usage stats",       stats),
 ]
 
@@ -127,4 +131,6 @@ main.add_command(autofac_reset)
 main.add_command(velocity_cmd)
 main.add_command(edit)
 main.add_command(cooldown)
+main.add_command(standup)
+main.add_command(retro)
 main.add_command(stats)
