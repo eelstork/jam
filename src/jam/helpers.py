@@ -191,8 +191,14 @@ def _repo_claude_settings_path(repo_path):
     return os.path.join(repo_path, ".claude", "settings.json")
 
 
+def _git_user_name(cwd=None):
+    """Return the git user.name (local then global), or empty string."""
+    result = run("git config user.name", cwd=cwd)
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
 def write_repo_claude_settings(repo_path):
-    """Write .claude/settings.json into a repo to suppress Claude attribution."""
+    """Write .claude/settings.json into a repo to set attribution to the git user name."""
     settings_path = _repo_claude_settings_path(repo_path)
     os.makedirs(os.path.dirname(settings_path), exist_ok=True)
     settings = {}
@@ -201,18 +207,22 @@ def write_repo_claude_settings(repo_path):
             settings = json.load(f)
     if "attribution" not in settings:
         settings["attribution"] = {}
-    settings["attribution"]["commit"] = ""
-    settings["attribution"]["pr"] = ""
+    git_name = _git_user_name(cwd=repo_path)
+    settings["attribution"]["commit"] = git_name
+    settings["attribution"]["pr"] = git_name
+    # Ensure $schema is first by rebuilding the dict with it at the top
+    ordered = {"$schema": "https://json.schemastore.org/claude-code-settings.json"}
+    ordered.update(settings)
     with open(settings_path, "w") as f:
-        json.dump(settings, f, indent=2)
+        json.dump(ordered, f, indent=2)
     return settings_path
 
 
 def repo_has_claude_attribution(repo_path):
-    """Check if a repo has .claude/settings.json with attribution suppressed."""
+    """Check if a repo has .claude/settings.json with attribution configured."""
     settings_path = _repo_claude_settings_path(repo_path)
     if not os.path.exists(settings_path):
         return False
     with open(settings_path) as f:
         settings = json.load(f)
-    return settings.get("attribution", {}).get("commit") == ""
+    return "commit" in settings.get("attribution", {})
