@@ -1,5 +1,15 @@
 # Jam 🍯
 
+```
+pip install git+https://github.com/eelstork/jam.git
+```
+Done with jam?
+```
+pip uninstall jam 
+```
+
+Developer mode: `pip install -e .` or `python install.py` after clone.
+
 Opinionated cross platform Git wrapper written mainly for Claude Code (CC) users; not intended for team use.
 
 I use `jam land REPO` every day; skips the ritualistic git flow that doesn't work when constantly
