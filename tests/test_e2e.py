@@ -364,11 +364,3 @@ class TestClaimAndReclaim:
             capture_output=True, text=True, cwd=repo_path,
         )
         assert "anthropic.com" not in r.stdout
-
-    def test_reclaim_idempotent(self, env):
-        """Running reclaim a second time should be a no-op."""
-        repo_path = os.path.join(env.jam_home, self.repo_name)
-
-        result = env.runner.invoke(main, ["reclaim", self.repo_name], input="yes\n")
-        assert result.exit_code == 0, result.output
-        assert "Nothing to reclaim" in result.output

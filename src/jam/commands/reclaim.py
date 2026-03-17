@@ -43,17 +43,6 @@ def reclaim(name):
     else:
         tags = {}
 
-    # Filter out commits whose messages already have velocity tags
-    if tags:
-        result = helpers.run(
-            "git log --all --format=%H:%s", cwd=repo_path,
-        )
-        for line in result.stdout.strip().splitlines():
-            sha, _, subject = line.partition(":")
-            first = subject.rstrip()
-            if sha in tags and "[x" in first and first.endswith("]"):
-                del tags[sha]
-
     # Count commits eligible for authorship reclaim
     result = helpers.run(
         "git log --all --format=%H:%ae", cwd=repo_path,
