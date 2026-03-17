@@ -79,11 +79,12 @@ def test_new_no_description(mock_exists, mock_run):
 @patch("jam.helpers.run")
 @patch("os.path.isdir", return_value=True)
 def test_up_with_name(mock_isdir, mock_run, mock_head, mock_crumb):
-    mock_run.side_effect = [ok(), ok(), ok()]
+    mock_run.side_effect = [ok(stdout=" M file.txt"), ok(), ok(), ok()]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["up", "--name", "myrepo", "fix stuff"])
     assert result.exit_code == 0
     assert "Pushed" in result.output
+    mock_run.assert_any_call("git status --porcelain", cwd="/tmp/dev/myrepo")
     mock_run.assert_any_call("git add -A", cwd="/tmp/dev/myrepo")
     mock_run.assert_any_call('git commit -m "fix stuff"', cwd="/tmp/dev/myrepo")
     mock_crumb.assert_called_once_with("/tmp/dev/myrepo", "up", pre_head="abc1234")
@@ -94,7 +95,7 @@ def test_up_with_name(mock_isdir, mock_run, mock_head, mock_crumb):
 @patch("jam.helpers.run")
 @patch("os.path.isdir", return_value=True)
 def test_up_force_push(mock_isdir, mock_run, mock_head, mock_crumb):
-    mock_run.side_effect = [ok(), ok(), ok()]
+    mock_run.side_effect = [ok(stdout=" M file.txt"), ok(), ok(), ok()]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["up", "--force", "--name", "myrepo", "fix stuff"])
     assert result.exit_code == 0
@@ -106,11 +107,39 @@ def test_up_force_push(mock_isdir, mock_run, mock_head, mock_crumb):
 @patch("jam.helpers.run")
 @patch("os.getcwd", return_value="/tmp/dev/myrepo")
 def test_up_without_name_uses_cwd(mock_cwd, mock_run, mock_head, mock_crumb):
-    mock_run.side_effect = [ok(), ok(), ok()]
+    mock_run.side_effect = [ok(stdout=" M file.txt"), ok(), ok(), ok()]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["up", "fix stuff"])
     assert result.exit_code == 0
     mock_run.assert_any_call("git add -A", cwd="/tmp/dev/myrepo")
+
+
+@patch("jam.helpers.save_breadcrumb")
+@patch("jam.helpers.get_head", return_value="abc1234")
+@patch("jam.helpers.run")
+@patch("os.path.isdir", return_value=True)
+def test_up_no_changes_just_pushes(mock_isdir, mock_run, mock_head, mock_crumb):
+    mock_run.side_effect = [ok(stdout=""), ok()]
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["up", "--name", "myrepo"])
+    assert result.exit_code == 0
+    assert "Pushed" in result.output
+    calls = [str(c) for c in mock_run.call_args_list]
+    assert not any("git add" in c for c in calls)
+    assert not any("git commit" in c for c in calls)
+
+
+@patch("jam.helpers.save_breadcrumb")
+@patch("jam.helpers.get_head", return_value="abc1234")
+@patch("jam.helpers.run")
+@patch("os.path.isdir", return_value=True)
+def test_up_prompts_for_message(mock_isdir, mock_run, mock_head, mock_crumb):
+    mock_run.side_effect = [ok(stdout=" M file.txt"), ok(), ok(), ok()]
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["up", "--name", "myrepo"], input="my commit msg\n")
+    assert result.exit_code == 0
+    assert "Pushed" in result.output
+    mock_run.assert_any_call('git commit -m "my commit msg"', cwd="/tmp/dev/myrepo")
 
 
 # --- down ---
