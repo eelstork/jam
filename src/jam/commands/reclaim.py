@@ -26,6 +26,37 @@ def reclaim(name):
         if not repo_path:
             helpers.fail("Not in a git repo. Provide a repo name or cd into one.")
 
+    # Ensure .claude/settings.json is up to date (commits if needed)
+    if not helpers.ensure_repo_claude_settings(repo_path):
+        helpers.fail("Failed to update .claude/settings.json.")
+
+    # Ensure the working tree is clean before rewriting history
+    status = helpers.run("git status --porcelain", cwd=repo_path)
+    if status.stdout.strip():
+        helpers.fail("Working tree is not clean. Commit or stash changes first.")
+
+    # Detect current branch and its upstream for force push
+    branch_result = helpers.run(
+        "git rev-parse --abbrev-ref HEAD", cwd=repo_path,
+    )
+    branch = branch_result.stdout.strip()
+    if not branch or branch == "HEAD":
+        helpers.fail("Not on a branch. Check out a branch first.")
+
+    upstream_result = helpers.run(
+        f"git rev-parse --abbrev-ref {branch}@{{upstream}}", cwd=repo_path,
+    )
+    has_upstream = upstream_result.returncode == 0
+
+    # Clean up any stale refs/original/ from a previous run — these are
+    # backup refs created by git filter-branch that cause git log
+    # to see old (unrewritten) commits, making reclaim non-idempotent.
+    helpers.run(
+        "git for-each-ref --format='delete %(refname)' refs/original/ | "
+        "git update-ref --stdin",
+        cwd=repo_path,
+    )
+
     baseline = helpers.get_jam_config("baseline_velocity")
 
     # Velocity tagging is optional — only compute tags if a baseline exists
@@ -34,15 +65,20 @@ def reclaim(name):
     else:
         tags = {}
 
-    # Count commits eligible for authorship reclaim
+    # Count commits eligible for authorship reclaim (current branch only)
+    # Also grab subjects to skip already-tagged commits
     result = helpers.run(
-        "git log --all --format=%H:%ae", cwd=repo_path,
+        "git log --format=%H:%ae:%s", cwd=repo_path,
     )
-    anthropic_shas = [
-        line.split(":")[0]
-        for line in result.stdout.strip().splitlines()
-        if "@anthropic.com" in line
-    ]
+    anthropic_shas = []
+    for line in result.stdout.strip().splitlines():
+        parts = line.split(":", 2)
+        sha, email, subject = parts[0], parts[1], parts[2] if len(parts) > 2 else ""
+        if "@anthropic.com" in email:
+            anthropic_shas.append(sha)
+        # Skip velocity tagging for commits that already have a tag
+        if sha in tags and "[x" in subject and subject.rstrip().endswith("]"):
+            del tags[sha]
 
     if not tags and not anthropic_shas:
         click.echo("Nothing to reclaim.")
@@ -55,7 +91,10 @@ def reclaim(name):
         parts.append(f"{len(tags)} commit(s) to tag")
     click.echo(f"Found {', '.join(parts)} in {os.path.basename(repo_path)}.")
     click.echo()
-    click.echo("This will rewrite commit history. All commit SHAs will change.")
+    click.echo(
+        "This will rewrite commit history and requires a force push"
+        f" on the current branch ({branch}). Commit SHAs may change."
+    )
     choice = click.prompt(
         "Proceed?",
         type=click.Choice(["yes", "no"], case_sensitive=False),
@@ -141,7 +180,7 @@ if n % 10 == 0:
             f"git filter-branch -f"
             f' --env-filter ". \'{env_script}\'"'
             f" --msg-filter \"'{python}' '{script}'\""
-            f" -- --all",
+            f" -- {branch}",
             cwd=repo_path,
         )
 
@@ -166,6 +205,22 @@ if n % 10 == 0:
         if tags:
             parts.append(f"tagged {len(tags)} commit(s)")
         click.echo(". ".join(parts) + ".")
+
+        # Force push the rewritten branch
+        if has_upstream:
+            click.echo(f"Force pushing {branch}...")
+            push_result = helpers.run(
+                f"git push --force-with-lease origin {branch}",
+                cwd=repo_path,
+            )
+            if push_result.returncode != 0:
+                click.echo(f"Push failed: {push_result.stderr.strip()}")
+            else:
+                click.echo("Pushed.")
+        else:
+            click.echo(
+                f"Branch {branch} has no upstream. Push manually when ready."
+            )
 
     finally:
         os.unlink(map_file.name)

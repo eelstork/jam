@@ -197,8 +197,14 @@ def _git_user_name(cwd=None):
     return result.stdout.strip() if result.returncode == 0 else ""
 
 
+def _git_user_email(cwd=None):
+    """Return the git user.email (local then global), or empty string."""
+    result = run("git config user.email", cwd=cwd)
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
 def write_repo_claude_settings(repo_path):
-    """Write .claude/settings.json into a repo to set attribution to the git user name."""
+    """Write .claude/settings.json into a repo to set attribution and SessionStart hook."""
     settings_path = _repo_claude_settings_path(repo_path)
     os.makedirs(os.path.dirname(settings_path), exist_ok=True)
     settings = {}
@@ -208,8 +214,22 @@ def write_repo_claude_settings(repo_path):
     if "attribution" not in settings:
         settings["attribution"] = {}
     git_name = _git_user_name(cwd=repo_path)
+    git_email = _git_user_email(cwd=repo_path)
     settings["attribution"]["commit"] = git_name
     settings["attribution"]["pr"] = git_name
+    # Add SessionStart hook to configure git identity
+    settings["hooks"] = {
+        "SessionStart": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": f'git config user.name "{git_name}" && git config user.email "{git_email}"',
+                    }
+                ]
+            }
+        ]
+    }
     # Ensure $schema is first by rebuilding the dict with it at the top
     ordered = {"$schema": "https://json.schemastore.org/claude-code-settings.json"}
     ordered.update(settings)
@@ -218,11 +238,33 @@ def write_repo_claude_settings(repo_path):
     return settings_path
 
 
-def repo_has_claude_attribution(repo_path):
-    """Check if a repo has .claude/settings.json with attribution configured."""
+def repo_has_claude_settings(repo_path):
+    """Check if a repo has .claude/settings.json with attribution and hooks configured."""
     settings_path = _repo_claude_settings_path(repo_path)
     if not os.path.exists(settings_path):
         return False
     with open(settings_path) as f:
         settings = json.load(f)
-    return "commit" in settings.get("attribution", {})
+    has_attribution = "commit" in settings.get("attribution", {})
+    has_hooks = bool(settings.get("hooks", {}).get("SessionStart"))
+    return has_attribution and has_hooks
+
+
+def ensure_repo_claude_settings(repo_path):
+    """Ensure .claude/settings.json is complete; write and commit if needed.
+
+    Returns True on success (or nothing to do), False on failure.
+    """
+    if not get_jam_config("attribution_enabled"):
+        return True
+    if repo_has_claude_settings(repo_path):
+        return True
+    write_repo_claude_settings(repo_path)
+    for cmd in [
+        "git add .claude/settings.json",
+        'git commit -m "update .claude/settings.json"',
+    ]:
+        result = run(cmd, cwd=repo_path)
+        if result.returncode != 0:
+            return False
+    return True

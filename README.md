@@ -24,8 +24,6 @@ Jam keeps all your repos under one roof (`JAM_HOME`) and talks to GitHub via `gh
 Requires Python 3.10+, [git](https://git-scm.com), and [gh](https://cli.github.com) (authenticated).
 If you're a github user, of course you already have them installed. Note: I do not believe jam a substitute for knowing and understanding git.
 
-Install via `pip install git+https://github.com/eelstork/jam.git`. To develop locally, clone the repo and use `pip install -e .` or `python install.py`. To remove: `pip uninstall jam`.
-
 In the doc: 🔺local/remote changes; 🔷local changes only; 🟡informative or config command
 
 ## Setup
@@ -76,6 +74,7 @@ If you use Claude Code, jam can restore your personal authorship on AI-assisted 
 | | |
 |---|---|
 | 🔺`jam claim-commits` | Set up commit attribution. Removes "Claude" from AI-assisted commits so they show your name; commits remain traceable. New repos created with `jam new` or `jam clone` get attribution automatically after setup. [claim_commits.py](src/jam/commands/claim_commits.py) |
-| 🔷`jam reclaim [NAME]` | Rewrite commit history to reclaim authorship on `@anthropic.com` commits. If a velocity baseline is configured, also tags commits with velocity markers. All SHAs will change; after a commit do a force push. Don't use this while Claude Code is working on a diff, as it may create (recoverable, but still) confusion. [reclaim.py](src/jam/commands/reclaim.py) |
+| 🔷`jam reclaim [NAME]` | Rewrite commit history on the current branch to reclaim authorship on `@anthropic.com` commits. If a velocity baseline is configured, also tags commits with velocity markers. Requires a clean working tree; force pushes the rewritten branch automatically. Don't use this while Claude Code is working on a diff, as it may create (recoverable, but still) confusion. [reclaim.py](src/jam/commands/reclaim.py) |
 | 🟡`jam velocity [NAME]` | Measure coding velocity for a repo. Shows intrinsic (human) and machine-assisted velocity with an acceleration factor. Pick a time period interactively: past week, past month, or all time. [velocity_cmd.py](src/jam/commands/velocity_cmd.py) |
+| 🟡`jam tag-velocity enable/disable` | Toggle velocity tagging on commits. When enabled, `jam land` and `jam reclaim` add velocity markers. [tag_velocity.py](src/jam/commands/tag_velocity.py) |
 | 🟡`jam autofac-reset` | Clear all attribution and velocity config. Removes `.claude/` from the current repo and resets `claim-commits` state so the workflow can be re-run. [autofac_reset.py](src/jam/commands/autofac_reset.py) |
