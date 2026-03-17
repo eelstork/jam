@@ -32,10 +32,10 @@ Or set the `JAM_HOME` environment variable if you prefer.
 
 ## Commands
 
-🔺**`jam new NAME ["DESCRIPTION"]`** -- spin up a repo on GitHub, clone it locally, push a readme. `--public` to make it public. Alias: `jam create`.
+🔺`jam new NAME ["DESCRIPTION"]` -- spin up a repo on GitHub, clone it locally, push a readme. `--public` to make it public. Alias: `jam create`.
 [new.py](src/jam/commands/new.py)
 
-**`jam clone SOURCE TARGET ["DESCRIPTION"]`** -- copy a repo as a brand new repo. Fresh git history, new GitHub remote. Great for templates. `--public` to make it public.
+**jam clone SOURCE TARGET ["DESCRIPTION"]** -- copy a repo as a brand new repo. Fresh git history, new GitHub remote. Great for templates. `--public` to make it public.
 [clone.py](src/jam/commands/clone.py)
 
 **`jam list`** -- see what you've got. `--info` pulls the first line from each readme.
