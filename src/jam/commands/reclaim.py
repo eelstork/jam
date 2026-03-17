@@ -59,8 +59,8 @@ def reclaim(name):
 
     baseline = helpers.get_jam_config("baseline_velocity")
 
-    # Velocity tagging is optional — only compute tags if a baseline exists
-    if baseline and baseline > 0:
+    # Velocity tagging is optional — requires both a baseline and the toggle
+    if baseline and baseline > 0 and helpers.get_jam_config("show_velocity_tag"):
         tags = velocity.commit_velocities(repo_path, baseline)
     else:
         tags = {}
