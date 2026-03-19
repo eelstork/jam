@@ -23,6 +23,7 @@ from jam.commands.edit import edit
 from jam.commands.cooldown import cooldown
 from jam.commands.standup import standup
 from jam.commands.retro import retro
+from jam.commands.remain import remain
 from jam.commands.stats import stats
 
 
@@ -48,6 +49,7 @@ COMMANDS = [
     ("standup",  "Show yesterday's commits per repo", standup),
     ("retro",    "Show past week's commits per repo", retro),
     ("stats",    "Show command usage stats",       stats),
+    ("remain",   "Fix master/main branch confusion", remain),
 ]
 
 
@@ -134,3 +136,4 @@ main.add_command(cooldown)
 main.add_command(standup)
 main.add_command(retro)
 main.add_command(stats)
+main.add_command(remain)
