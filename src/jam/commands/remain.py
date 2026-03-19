@@ -62,11 +62,24 @@ def remain():
         repo_path = os.path.join(jam_home, entry)
         if not os.path.isdir(os.path.join(repo_path, ".git")):
             continue
+        click.echo(".", nl=False)
         if _add_remain_hook(repo_path):
             added.append(entry)
         else:
             skipped.append(entry)
 
+    if added or skipped:
+        click.echo()  # newline after dots
     click.echo(f"Added remain hook to {len(added)} repo{'s' if len(added) != 1 else ''}.")
     if skipped:
         click.echo(f"Skipped: {', '.join(skipped)}")
+
+    # Commit and push the settings changes
+    for entry in added:
+        repo_path = os.path.join(jam_home, entry)
+        settings_rel = os.path.join(".claude", "settings.json")
+        helpers.run(f"git add {settings_rel}", cwd=repo_path)
+        status = helpers.run("git diff --cached --quiet", cwd=repo_path)
+        if status.returncode != 0:  # there are staged changes
+            helpers.run('git commit -m "add remain hook"', cwd=repo_path)
+            helpers.run("git push", cwd=repo_path)
