@@ -13,6 +13,13 @@ REMAIN_HOOK_COMMAND = (
 )
 
 
+def _is_clean(repo_path):
+    """Return True if the repo has no staged or unstaged changes."""
+    staged = helpers.run("git diff --cached --quiet", cwd=repo_path)
+    unstaged = helpers.run("git diff --quiet", cwd=repo_path)
+    return staged.returncode == 0 and unstaged.returncode == 0
+
+
 def _add_remain_hook(repo_path):
     """Add the remain startup hook to a repo's .claude/settings.json.
 
@@ -63,7 +70,9 @@ def remain():
         if not os.path.isdir(os.path.join(repo_path, ".git")):
             continue
         click.echo(".", nl=False)
-        if _add_remain_hook(repo_path):
+        if not _is_clean(repo_path):
+            skipped.append(entry)
+        elif _add_remain_hook(repo_path):
             added.append(entry)
         else:
             skipped.append(entry)

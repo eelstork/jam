@@ -23,7 +23,7 @@ def test_remain_adds_hook_to_repos(tmp_path):
     (tmp_path / "beta" / ".git").mkdir(parents=True)
     (tmp_path / "notrepo").mkdir()
 
-    with patch("jam.helpers.run", return_value=ok()) as mock_run:
+    with patch("jam.helpers.run", return_value=ok()):
         runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
         result = runner.invoke(main, ["remain"])
     assert result.exit_code == 0
@@ -143,10 +143,20 @@ def test_remain_commits_and_pushes(tmp_path):
     """remain should git add, commit, and push for each changed repo."""
     (tmp_path / "repo" / ".git").mkdir(parents=True)
 
-    with patch("jam.helpers.run") as mock_run:
-        # git add -> ok, git diff --cached --quiet -> exit 1 (has staged changes),
-        # git commit -> ok, git push -> ok
-        mock_run.side_effect = [ok(), err(), ok(), ok()]
+    def run_side_effect(cmd, **kwargs):
+        # _is_clean: two calls returning ok (clean repo)
+        # then git add, git diff --cached (dirty after add), commit, push
+        if "git diff --cached --quiet" in cmd:
+            run_side_effect.diff_count += 1
+            # First call is from _is_clean (clean), second is post-add (dirty)
+            if run_side_effect.diff_count == 1:
+                return ok()
+            return err()
+        return ok()
+
+    run_side_effect.diff_count = 0
+
+    with patch("jam.helpers.run", side_effect=run_side_effect) as mock_run:
         runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
         result = runner.invoke(main, ["remain"])
     assert result.exit_code == 0
@@ -173,9 +183,7 @@ def test_remain_skips_push_when_no_changes(tmp_path):
     with open(claude_dir / "settings.json", "w") as f:
         json.dump(existing, f)
 
-    with patch("jam.helpers.run") as mock_run:
-        # git add -> ok, git diff --cached --quiet -> exit 0 (no changes)
-        mock_run.side_effect = [ok(), ok()]
+    with patch("jam.helpers.run", return_value=ok()) as mock_run:
         runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
         result = runner.invoke(main, ["remain"])
     assert result.exit_code == 0
@@ -183,3 +191,32 @@ def test_remain_skips_push_when_no_changes(tmp_path):
     cmds = [c.args[0] for c in mock_run.call_args_list]
     assert not any("git commit" in c for c in cmds)
     assert not any("git push" in c for c in cmds)
+
+
+def test_remain_skips_dirty_repo(tmp_path):
+    """remain should skip repos with uncommitted changes."""
+    (tmp_path / "pristine" / ".git").mkdir(parents=True)
+    (tmp_path / "messy" / ".git").mkdir(parents=True)
+
+    def run_side_effect(cmd, **kwargs):
+        cwd = str(kwargs.get("cwd", ""))
+        repo_name = os.path.basename(cwd)
+        # messy repo: _is_clean checks fail
+        if repo_name == "messy" and "git diff" in cmd:
+            return err()
+        return ok()
+
+    with patch("jam.helpers.run", side_effect=run_side_effect):
+        runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+        result = runner.invoke(main, ["remain"])
+    assert result.exit_code == 0
+    assert "Added remain hook to 1 repo" in result.output
+    assert "Skipped: messy" in result.output
+
+    # Clean repo got the hook
+    settings_path = tmp_path / "pristine" / ".claude" / "settings.json"
+    assert settings_path.exists()
+
+    # Dirty repo did NOT get the hook
+    messy_settings = tmp_path / "messy" / ".claude" / "settings.json"
+    assert not messy_settings.exists()
