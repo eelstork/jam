@@ -61,8 +61,34 @@ def _add_remain_hook(repo_path):
         json.dump(ordered, f, indent=2)
 
 
+def _remove_remain_hook(repo_path):
+    """Remove the remain startup hook from a repo's .claude/settings.json."""
+    settings_path = os.path.join(repo_path, ".claude", "settings.json")
+    with open(settings_path) as f:
+        settings = json.load(f)
+
+    session_start = settings.get("hooks", {}).get("SessionStart", [])
+    settings["hooks"]["SessionStart"] = [
+        event for event in session_start
+        if not any(
+            h.get("command") == REMAIN_HOOK_COMMAND
+            for h in event.get("hooks", [])
+        )
+    ]
+
+    # Clean up empty SessionStart / hooks
+    if not settings["hooks"]["SessionStart"]:
+        del settings["hooks"]["SessionStart"]
+    if not settings["hooks"]:
+        del settings["hooks"]
+
+    with open(settings_path, "w") as f:
+        json.dump(settings, f, indent=2)
+
+
 @click.command()
-def remain():
+@click.option("--unset", is_flag=True, help="Remove the remain hook from all repos.")
+def remain(unset):
     """Fix master/main branch confusion across all repos."""
     jam_home = helpers.get_jam_home()
 
@@ -73,13 +99,16 @@ def remain():
         if os.path.isdir(os.path.join(repo_path, ".git")):
             repos.append((entry, repo_path))
 
-    # Classify: already has hook, needs hook (must be clean), or dirty
+    # Classify: needs work vs already done.
+    # For --unset, "needs work" means has the hook; for set, means lacks it.
     done = []
     todo = []
     dirty = []
     for entry, repo_path in repos:
         click.echo(".", nl=False)
-        if _has_hook(repo_path):
+        has = _has_hook(repo_path)
+        needs_work = has if unset else not has
+        if not needs_work:
             done.append(entry)
         elif _is_clean(repo_path):
             todo.append(entry)
@@ -89,7 +118,7 @@ def remain():
     if repos:
         click.echo()  # newline after dots
 
-    # Bail if any repo that needs the hook is dirty
+    # Bail if any repo that needs work is dirty
     if dirty:
         click.echo(
             f"Aborted: {', '.join(dirty)} "
@@ -98,18 +127,24 @@ def remain():
         )
         raise SystemExit(1)
 
-    # Apply hooks and commit/push
+    # Apply changes and commit/push
+    action = "remove" if unset else "add"
+    modify = _remove_remain_hook if unset else _add_remain_hook
     for entry, repo_path in repos:
         if entry in done:
             continue
-        _add_remain_hook(repo_path)
+        modify(repo_path)
         settings_rel = os.path.join(".claude", "settings.json")
         helpers.run(f"git add {settings_rel}", cwd=repo_path)
-        helpers.run('git commit -m "add remain hook"', cwd=repo_path)
+        helpers.run(f'git commit -m "{action} remain hook"', cwd=repo_path)
         helpers.run("git push", cwd=repo_path)
 
+    verb = "Removed" if unset else "Added"
+    prep = "from" if unset else "to"
     click.echo(
-        f"Added remain hook to {len(todo)} repo{'s' if len(todo) != 1 else ''}."
+        f"{verb} remain hook {prep} {len(todo)} "
+        f"repo{'s' if len(todo) != 1 else ''}."
     )
     if done:
-        click.echo(f"Already installed: {', '.join(done)}")
+        label = "Already removed" if unset else "Already installed"
+        click.echo(f"{label}: {', '.join(done)}")
