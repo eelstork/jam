@@ -1,7 +1,7 @@
 import json
 import os
 from subprocess import CompletedProcess
-from unittest.mock import patch, call
+from unittest.mock import patch
 
 from click.testing import CliRunner
 
@@ -140,23 +140,10 @@ def test_remain_shows_progress_dots(tmp_path):
 
 
 def test_remain_commits_and_pushes(tmp_path):
-    """remain should git add, commit, and push for each changed repo."""
+    """remain should git add, commit, and push for each repo."""
     (tmp_path / "repo" / ".git").mkdir(parents=True)
 
-    def run_side_effect(cmd, **kwargs):
-        # _is_clean: two calls returning ok (clean repo)
-        # then git add, git diff --cached (dirty after add), commit, push
-        if "git diff --cached --quiet" in cmd:
-            run_side_effect.diff_count += 1
-            # First call is from _is_clean (clean), second is post-add (dirty)
-            if run_side_effect.diff_count == 1:
-                return ok()
-            return err()
-        return ok()
-
-    run_side_effect.diff_count = 0
-
-    with patch("jam.helpers.run", side_effect=run_side_effect) as mock_run:
+    with patch("jam.helpers.run", return_value=ok()) as mock_run:
         runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
         result = runner.invoke(main, ["remain"])
     assert result.exit_code == 0
@@ -167,8 +154,8 @@ def test_remain_commits_and_pushes(tmp_path):
     assert any("git push" in c for c in cmds)
 
 
-def test_remain_skips_push_when_no_changes(tmp_path):
-    """If the hook was already present, no commit/push should happen."""
+def test_remain_no_commit_when_already_installed(tmp_path):
+    """If the hook is already present, no commit/push should happen."""
     repo = tmp_path / "repo"
     (repo / ".git").mkdir(parents=True)
     claude_dir = repo / ".claude"
@@ -187,21 +174,21 @@ def test_remain_skips_push_when_no_changes(tmp_path):
         runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
         result = runner.invoke(main, ["remain"])
     assert result.exit_code == 0
+    assert "Already installed: repo" in result.output
 
     cmds = [c.args[0] for c in mock_run.call_args_list]
     assert not any("git commit" in c for c in cmds)
     assert not any("git push" in c for c in cmds)
 
 
-def test_remain_skips_dirty_repo(tmp_path):
-    """remain should skip repos with uncommitted changes."""
+def test_remain_aborts_if_any_dirty(tmp_path):
+    """remain should abort entirely if any repo needing the hook is dirty."""
     (tmp_path / "pristine" / ".git").mkdir(parents=True)
     (tmp_path / "messy" / ".git").mkdir(parents=True)
 
     def run_side_effect(cmd, **kwargs):
         cwd = str(kwargs.get("cwd", ""))
         repo_name = os.path.basename(cwd)
-        # messy repo: _is_clean checks fail
         if repo_name == "messy" and "git diff" in cmd:
             return err()
         return ok()
@@ -209,14 +196,38 @@ def test_remain_skips_dirty_repo(tmp_path):
     with patch("jam.helpers.run", side_effect=run_side_effect):
         runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
         result = runner.invoke(main, ["remain"])
+    assert result.exit_code != 0
+    assert "Aborted" in result.output
+    assert "messy" in result.output
+
+    # Neither repo should have been modified
+    for name in ("pristine", "messy"):
+        settings_path = tmp_path / name / ".claude" / "settings.json"
+        assert not settings_path.exists()
+
+
+def test_remain_dirty_repo_ok_if_hook_installed(tmp_path):
+    """A dirty repo that already has the hook should not block remain."""
+    (tmp_path / "needshook" / ".git").mkdir(parents=True)
+
+    # This repo is dirty but already has the hook
+    messy = tmp_path / "messy"
+    (messy / ".git").mkdir(parents=True)
+    claude_dir = messy / ".claude"
+    claude_dir.mkdir()
+    existing = {
+        "hooks": {
+            "SessionStart": [
+                {"hooks": [{"type": "command", "command": REMAIN_HOOK_COMMAND}]}
+            ]
+        }
+    }
+    with open(claude_dir / "settings.json", "w") as f:
+        json.dump(existing, f)
+
+    with patch("jam.helpers.run", return_value=ok()):
+        runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+        result = runner.invoke(main, ["remain"])
     assert result.exit_code == 0
-    assert "Added remain hook to 1 repo" in result.output
-    assert "Skipped: messy" in result.output
-
-    # Clean repo got the hook
-    settings_path = tmp_path / "pristine" / ".claude" / "settings.json"
-    assert settings_path.exists()
-
-    # Dirty repo did NOT get the hook
-    messy_settings = tmp_path / "messy" / ".claude" / "settings.json"
-    assert not messy_settings.exists()
+    assert "Added remain hook to 1 repo." in result.output
+    assert "Already installed: messy" in result.output
