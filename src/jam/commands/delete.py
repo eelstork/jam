@@ -22,6 +22,14 @@ def delete(name):
     helpers.run(f"git tag jam-delete", cwd=repo_path)
     helpers.run(f"git push origin tag jam-delete", cwd=repo_path)
 
-    shutil.rmtree(repo_path)
+    try:
+        shutil.rmtree(repo_path)
+    except PermissionError:
+        # On Windows, git objects are often read-only; retry with a handler
+        # that clears the read-only flag before removing.
+        def _on_rm_error(_func, path, _exc_info):
+            os.chmod(path, 0o700)
+            _func(path)
+        shutil.rmtree(repo_path, onerror=_on_rm_error)
 
     click.echo(f"Deleted {name} locally. Remote tagged for cleanup (jam purge).")
