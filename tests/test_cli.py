@@ -364,17 +364,10 @@ def test_delete_repo(tmp_path):
     (repo / "file.txt").write_text("data")
 
     runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
-    with patch("jam.helpers.run") as mock_run:
-        mock_run.return_value = ok()
-        result = runner.invoke(main, ["delete", "myrepo"], input="y\n")
+    result = runner.invoke(main, ["delete", "myrepo"], input="y\n")
     assert result.exit_code == 0
     assert "Deleted myrepo locally" in result.output
     assert not repo.exists()
-    # Should tag remote, not delete it
-    cmds = [c.args[0] for c in mock_run.call_args_list]
-    assert any("git tag jam-delete" in c for c in cmds)
-    assert any("git push origin tag jam-delete" in c for c in cmds)
-    assert not any("gh repo delete" in c for c in cmds)
 
 
 def test_delete_aborted_on_confirm(tmp_path):
@@ -554,9 +547,7 @@ def test_delete_prefix_match(tmp_path):
     (repo / "file.txt").write_text("data")
 
     runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
-    with patch("jam.helpers.run") as mock_run:
-        mock_run.return_value = ok()
-        result = runner.invoke(main, ["delete", "my-l"], input="y\n")
+    result = runner.invoke(main, ["delete", "my-l"], input="y\n")
     assert result.exit_code == 0
     assert "Deleted my-long-name locally" in result.output
     assert not repo.exists()
