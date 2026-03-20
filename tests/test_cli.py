@@ -77,11 +77,12 @@ def test_new_no_description(mock_exists, mock_run):
 @patch("jam.helpers.save_breadcrumb")
 @patch("jam.helpers.get_head", return_value="abc1234")
 @patch("jam.helpers.run")
+@patch("jam.helpers.is_repo", return_value=True)
 @patch("os.path.isdir", return_value=True)
-def test_up_with_name(mock_isdir, mock_run, mock_head, mock_crumb):
+def test_up_with_name(mock_isdir, mock_is_repo, mock_run, mock_head, mock_crumb):
     mock_run.side_effect = [ok(stdout=" M file.txt"), ok(), ok(), ok()]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
-    result = runner.invoke(main, ["up", "--name", "myrepo", "fix stuff"])
+    result = runner.invoke(main, ["up", "myrepo", "fix stuff"])
     assert result.exit_code == 0
     assert "Pushed" in result.output
     mock_run.assert_any_call("git status --porcelain", cwd="/tmp/dev/myrepo")
@@ -93,11 +94,12 @@ def test_up_with_name(mock_isdir, mock_run, mock_head, mock_crumb):
 @patch("jam.helpers.save_breadcrumb")
 @patch("jam.helpers.get_head", return_value="abc1234")
 @patch("jam.helpers.run")
+@patch("jam.helpers.is_repo", return_value=True)
 @patch("os.path.isdir", return_value=True)
-def test_up_force_push(mock_isdir, mock_run, mock_head, mock_crumb):
+def test_up_force_push(mock_isdir, mock_is_repo, mock_run, mock_head, mock_crumb):
     mock_run.side_effect = [ok(stdout=" M file.txt"), ok(), ok(), ok()]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
-    result = runner.invoke(main, ["up", "--force", "--name", "myrepo", "fix stuff"])
+    result = runner.invoke(main, ["up", "--force", "myrepo", "fix stuff"])
     assert result.exit_code == 0
     mock_run.assert_any_call("git push --force", cwd="/tmp/dev/myrepo")
 
@@ -105,8 +107,9 @@ def test_up_force_push(mock_isdir, mock_run, mock_head, mock_crumb):
 @patch("jam.helpers.save_breadcrumb")
 @patch("jam.helpers.get_head", return_value="abc1234")
 @patch("jam.helpers.run")
+@patch("jam.helpers.is_repo", return_value=False)
 @patch("os.getcwd", return_value="/tmp/dev/myrepo")
-def test_up_without_name_uses_cwd(mock_cwd, mock_run, mock_head, mock_crumb):
+def test_up_without_name_uses_cwd(mock_cwd, mock_is_repo, mock_run, mock_head, mock_crumb):
     mock_run.side_effect = [ok(stdout=" M file.txt"), ok(), ok(), ok()]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["up", "fix stuff"])
@@ -117,11 +120,12 @@ def test_up_without_name_uses_cwd(mock_cwd, mock_run, mock_head, mock_crumb):
 @patch("jam.helpers.save_breadcrumb")
 @patch("jam.helpers.get_head", return_value="abc1234")
 @patch("jam.helpers.run")
+@patch("jam.helpers.is_repo", return_value=True)
 @patch("os.path.isdir", return_value=True)
-def test_up_no_changes_just_pushes(mock_isdir, mock_run, mock_head, mock_crumb):
+def test_up_no_changes_just_pushes(mock_isdir, mock_is_repo, mock_run, mock_head, mock_crumb):
     mock_run.side_effect = [ok(stdout=""), ok()]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
-    result = runner.invoke(main, ["up", "--name", "myrepo"])
+    result = runner.invoke(main, ["up", "myrepo"])
     assert result.exit_code == 0
     assert "Pushed" in result.output
     calls = [str(c) for c in mock_run.call_args_list]
@@ -132,11 +136,12 @@ def test_up_no_changes_just_pushes(mock_isdir, mock_run, mock_head, mock_crumb):
 @patch("jam.helpers.save_breadcrumb")
 @patch("jam.helpers.get_head", return_value="abc1234")
 @patch("jam.helpers.run")
+@patch("jam.helpers.is_repo", return_value=True)
 @patch("os.path.isdir", return_value=True)
-def test_up_prompts_for_message(mock_isdir, mock_run, mock_head, mock_crumb):
+def test_up_prompts_for_message(mock_isdir, mock_is_repo, mock_run, mock_head, mock_crumb):
     mock_run.side_effect = [ok(stdout=" M file.txt"), ok(), ok(), ok()]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
-    result = runner.invoke(main, ["up", "--name", "myrepo"], input="my commit msg\n")
+    result = runner.invoke(main, ["up", "myrepo"], input="my commit msg\n")
     assert result.exit_code == 0
     assert "Pushed" in result.output
     mock_run.assert_any_call('git commit -m "my commit msg"', cwd="/tmp/dev/myrepo")

@@ -122,6 +122,22 @@ def get_gh_user():
     return result.stdout.strip()
 
 
+def is_repo(name):
+    """Return True if *name* uniquely matches a repo in JAM_HOME."""
+    jam_home = get_jam_home()
+    if os.path.isdir(os.path.join(jam_home, name)):
+        return True
+    try:
+        entries = os.listdir(jam_home)
+    except OSError:
+        entries = []
+    candidates = [
+        d for d in entries
+        if d.startswith(name) and os.path.isdir(os.path.join(jam_home, d))
+    ]
+    return len(candidates) == 1
+
+
 def match_repo(name):
     """Resolve a possibly-incomplete repo name via prefix matching.
 
