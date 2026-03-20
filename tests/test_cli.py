@@ -153,8 +153,9 @@ def test_up_prompts_for_message(mock_isdir, mock_is_repo, mock_run, mock_head, m
 @patch("jam.helpers.save_breadcrumb")
 @patch("jam.helpers.get_head", return_value="abc1234")
 @patch("jam.helpers.run")
+@patch("jam.helpers.is_repo", return_value=True)
 @patch("os.path.isdir", return_value=True)
-def test_down_with_name(mock_isdir, mock_run, mock_head, mock_crumb):
+def test_down_with_name(mock_isdir, mock_is_repo, mock_run, mock_head, mock_crumb):
     mock_run.side_effect = [ok()]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["down", "myrepo"])
@@ -167,8 +168,9 @@ def test_down_with_name(mock_isdir, mock_run, mock_head, mock_crumb):
 @patch("jam.helpers.save_breadcrumb")
 @patch("jam.helpers.get_head", return_value="abc1234")
 @patch("jam.helpers.run")
+@patch("jam.helpers.is_repo", return_value=True)
 @patch("os.path.isdir", return_value=True)
-def test_down_force(mock_isdir, mock_run, mock_head, mock_crumb):
+def test_down_force(mock_isdir, mock_is_repo, mock_run, mock_head, mock_crumb):
     mock_run.side_effect = [ok(), ok()]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["down", "--force", "myrepo"])
@@ -185,6 +187,32 @@ def test_down_without_name_uses_cwd(mock_cwd, mock_run, mock_head, mock_crumb):
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["down"])
     assert result.exit_code == 0
+
+
+@patch("jam.helpers.get_gh_user", return_value="testuser")
+@patch("jam.helpers.run")
+@patch("jam.helpers.is_repo", return_value=False)
+def test_down_clones_if_not_local(mock_is_repo, mock_run, mock_gh_user):
+    mock_run.side_effect = [ok(), ok()]  # gh repo view, git clone
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["down", "newrepo"])
+    assert result.exit_code == 0
+    assert "Cloned" in result.output
+    mock_run.assert_any_call("gh repo view testuser/newrepo")
+    mock_run.assert_any_call(
+        "git clone https://github.com/testuser/newrepo.git /tmp/dev/newrepo"
+    )
+
+
+@patch("jam.helpers.get_gh_user", return_value="testuser")
+@patch("jam.helpers.run")
+@patch("jam.helpers.is_repo", return_value=False)
+def test_down_clone_fails_if_not_on_remote(mock_is_repo, mock_run, mock_gh_user):
+    mock_run.side_effect = [CompletedProcess(args="", returncode=1, stdout="", stderr="not found")]
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["down", "nonexistent"])
+    assert result.exit_code != 0
+    assert "not found" in result.output
 
 
 # --- list ---
