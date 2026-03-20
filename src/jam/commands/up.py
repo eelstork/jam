@@ -10,12 +10,26 @@ def _has_changes(repo_path):
 
 
 @click.command()
-@click.argument("message", default="")
-@click.option("--name", "-n", default="", help="Repo name (default: current dir).")
+@click.argument("args", nargs=-1)
 @click.option("--force", is_flag=True, help="Force push.")
-def up(message, name, force):
-    """Add all, commit, and push."""
-    repo_path = helpers.resolve_repo(name or None)
+def up(args, force):
+    """Add all, commit, and push.
+
+    Usage: jam up [REPO] [MESSAGE]
+
+    If the first argument matches a known repo it is used as the repo name;
+    otherwise it is treated as the commit message.
+    """
+    name = None
+    message = ""
+
+    if len(args) >= 1 and helpers.is_repo(args[0]):
+        name = args[0]
+        message = " ".join(args[1:]) if len(args) > 1 else ""
+    else:
+        message = " ".join(args) if args else ""
+
+    repo_path = helpers.resolve_repo(name)
 
     pre_head = helpers.get_head(repo_path)
 
