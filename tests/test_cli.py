@@ -370,11 +370,8 @@ def test_delete_repo(tmp_path):
     assert result.exit_code == 0
     assert "Deleted myrepo locally" in result.output
     assert not repo.exists()
-    # Should tag remote, not delete it
-    cmds = [c.args[0] for c in mock_run.call_args_list]
-    assert any("git tag jam-delete" in c for c in cmds)
-    assert any("git push origin tag jam-delete" in c for c in cmds)
-    assert not any("gh repo delete" in c for c in cmds)
+    # Should not call any remote commands
+    mock_run.assert_not_called()
 
 
 def test_delete_aborted_on_confirm(tmp_path):
