@@ -24,6 +24,7 @@ from jam.commands.cooldown import cooldown
 from jam.commands.standup import standup
 from jam.commands.retro import retro
 from jam.commands.remain import remain
+from jam.commands.remix import remix
 from jam.commands.stats import stats
 
 
@@ -48,6 +49,7 @@ COMMANDS = [
     ("cooldown", "Show today's commits per repo",  cooldown),
     ("standup",  "Show yesterday's commits per repo", standup),
     ("retro",    "Show past week's commits per repo", retro),
+    ("remix",    "Itemize and share CLAUDE.md settings", remix),
     ("stats",    "Show command usage stats",       stats),
     ("remain",   "Fix master/main branch confusion", remain),
 ]
@@ -135,5 +137,6 @@ main.add_command(edit)
 main.add_command(cooldown)
 main.add_command(standup)
 main.add_command(retro)
+main.add_command(remix)
 main.add_command(stats)
 main.add_command(remain)
