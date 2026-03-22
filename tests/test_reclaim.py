@@ -86,3 +86,34 @@ def test_reclaim_idempotent():
             result = runner.invoke(main, ["reclaim"], input="yes\n")
             assert result.exit_code == 0, result.output
             assert "Nothing to reclaim" in result.output
+
+
+def test_reclaim_commits_limit():
+    """--commits N should only reclaim the last N commits."""
+    repo = _make_repo_with_anthropic_commits()
+    # repo has 4 commits: 1 user + 3 anthropic (ai commit 0, 1, 2)
+    runner = CliRunner()
+
+    import unittest.mock as mock
+    with mock.patch("jam.commands.reclaim.helpers.git_repo_root", return_value=repo):
+        with mock.patch("jam.commands.reclaim.helpers.get_jam_config", return_value=None):
+            # Reclaim only the last 2 commits (ai commit 1 and 2)
+            result = runner.invoke(
+                main, ["reclaim", "--commits", "2"], input="yes\n",
+            )
+            assert result.exit_code == 0, result.output
+            assert "2 commit(s) to reclaim" in result.output
+
+            # The oldest anthropic commit (ai commit 0) should still
+            # have the anthropic email
+            r = subprocess.run(
+                "git log --format=%ae:%s", shell=True,
+                capture_output=True, text=True, cwd=repo,
+            )
+            lines = r.stdout.strip().splitlines()
+            # Find the "ai commit 0" line — should still be anthropic
+            for line in lines:
+                if "ai commit 0" in line:
+                    assert "anthropic.com" in line, (
+                        f"ai commit 0 should not have been reclaimed: {line}"
+                    )
