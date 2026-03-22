@@ -13,7 +13,9 @@ from jam import velocity
 
 @click.command()
 @click.argument("name", default="")
-def reclaim(name):
+@click.option("--commits", "-c", "max_commits", type=int, default=0,
+              help="Only look back at most N commits.")
+def reclaim(name, max_commits):
     """Reclaim commit authorship and tag with velocity markers.
 
     Rewrites Author/Committer to your git identity and appends
@@ -61,15 +63,17 @@ def reclaim(name):
 
     # Velocity tagging is optional — requires both a baseline and the toggle
     if baseline and baseline > 0 and helpers.get_jam_config("show_velocity_tag"):
-        tags = velocity.commit_velocities(repo_path, baseline)
+        tags = velocity.commit_velocities(repo_path, baseline,
+                                          max_count=max_commits)
     else:
         tags = {}
 
     # Count commits eligible for authorship reclaim (current branch only)
     # Also grab subjects to skip already-tagged commits
-    result = helpers.run(
-        "git log --format=%H:%ae:%s", cwd=repo_path,
-    )
+    log_cmd = "git log --format=%H:%ae:%s"
+    if max_commits > 0:
+        log_cmd += f" --max-count={max_commits}"
+    result = helpers.run(log_cmd, cwd=repo_path)
     anthropic_shas = []
     for line in result.stdout.strip().splitlines():
         parts = line.split(":", 2)
@@ -176,11 +180,15 @@ if n % 10 == 0:
         python = sys.executable.replace("\\", "/")
         script = script_file.name.replace("\\", "/")
         env_script = env_filter_file.name.replace("\\", "/")
+        if max_commits > 0:
+            rev_range = f"HEAD~{max_commits}..HEAD"
+        else:
+            rev_range = branch
         result = helpers.run(
             f"git filter-branch -f"
             f' --env-filter ". \'{env_script}\'"'
             f" --msg-filter \"'{python}' '{script}'\""
-            f" -- {branch}",
+            f" -- {rev_range}",
             cwd=repo_path,
         )
 

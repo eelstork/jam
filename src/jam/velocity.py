@@ -61,8 +61,10 @@ def git_in(repo_dir, *args):
     return r.stdout.strip()
 
 
-def get_commits(repo_dir, author="", exclude_author="", since=""):
+def get_commits(repo_dir, author="", exclude_author="", since="", max_count=0):
     cmd = ["log", "--format=%H %at %aN", "--no-merges"]
+    if max_count > 0:
+        cmd += [f"--max-count={max_count}"]
     if author:
         cmd += [f"--author={author}"]
     if since:
@@ -308,7 +310,7 @@ def branch_velocity(repo_dir, base_ref, head_ref, gross=False):
 # ── Per-commit velocity (for jam reclaim) ───────────────────────────────
 
 
-def commit_velocities(repo_dir, baseline, gross=False):
+def commit_velocities(repo_dir, baseline, gross=False, max_count=0):
     """Return a dict mapping commit SHA to velocity tag string.
 
     For each consecutive pair of commits, computes velocity and the ratio
@@ -316,8 +318,10 @@ def commit_velocities(repo_dir, baseline, gross=False):
 
     When *gross* is True, uses total lines added (speed) instead of
     net lines (added - removed).
+
+    When *max_count* > 0, only considers the last *max_count* commits.
     """
-    commits = get_commits(repo_dir)
+    commits = get_commits(repo_dir, max_count=max_count)
     if len(commits) < 2:
         return {}
 
