@@ -13,7 +13,7 @@ from jam import velocity
 
 @click.command()
 @click.argument("name", default="")
-@click.option("--commits", "max_commits", type=int, default=0,
+@click.option("--commits", "-c", "max_commits", type=int, default=0,
               help="Only look back at most N commits.")
 def reclaim(name, max_commits):
     """Reclaim commit authorship and tag with velocity markers.
