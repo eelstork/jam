@@ -257,7 +257,7 @@ def remix(target):
         share_items = [
             ("Share to all repos", "Add this directive to every repo's CLAUDE.md"),
             ("Share to one repo", "Pick a single target repo"),
-            ("Back", "Return to directive list"),
+            ("Cancel", "Return to directive list"),
         ]
         action = pick(share_items, header="share")
         if action is None or action == 2:
