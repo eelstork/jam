@@ -110,19 +110,24 @@ def _do_land(repo_path, branch):
 
 
 @click.command()
-@click.argument("name", default="")
+@click.argument("names", nargs=-1)
 @click.option("--all", "land_all", is_flag=True, help="Land across all repos.")
-def land(name, land_all):
+def land(names, land_all):
     """Merge the latest branch into main."""
     if land_all:
         _land_all()
-    elif "," in name:
-        for part in name.split(","):
-            part = part.strip()
-            if part:
-                _land_one(part)
     else:
-        _land_one(name)
+        # Flatten comma-separated entries: "a, b" "c" -> ["a", "b", "c"]
+        repos = []
+        for n in names:
+            for part in n.split(","):
+                part = part.strip()
+                if part:
+                    repos.append(part)
+        if not repos:
+            repos = [""]
+        for repo in repos:
+            _land_one(repo)
 
 
 def _land_all():
