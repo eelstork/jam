@@ -7,10 +7,14 @@ from jam import velocity
 
 
 def _get_landable(repo_path):
-    """Return (branch, commits) for the most recent branch, or None."""
+    """Return (branch, commits) for the most recent branch, or None.
+
+    Returns a string on error, None when there's nothing to land,
+    or a (branch, commits) tuple on success.
+    """
     result = helpers.run("git fetch --all", cwd=repo_path)
     if result.returncode != 0:
-        return None
+        return f"fetch failed: {result.stderr.strip()}"
 
     result = helpers.run(
         "git for-each-ref --sort=-committerdate refs/remotes/origin/ "
@@ -18,7 +22,7 @@ def _get_landable(repo_path):
         cwd=repo_path,
     )
     if result.returncode != 0:
-        return None
+        return f"could not list branches: {result.stderr.strip()}"
 
     branches = [
         b.strip().strip("'") for b in result.stdout.strip().splitlines()
@@ -34,7 +38,7 @@ def _get_landable(repo_path):
         cwd=repo_path,
     )
     if result.returncode != 0:
-        return None
+        return f"could not read commits: {result.stderr.strip()}"
 
     commits = result.stdout.strip().splitlines()
     if not commits:
@@ -83,12 +87,18 @@ def _ensure_attribution(repo_path):
 
 
 def _do_land(repo_path, branch):
-    """Merge branch into main, push, save breadcrumb. Return commit count or None on failure."""
+    """Merge branch into main, push, save breadcrumb.
+
+    Returns True on success, or an error string on failure.
+    """
     tag = _compute_velocity_tag(repo_path, branch)
 
-    helpers.run("git checkout main", cwd=repo_path)
+    result = helpers.run("git checkout main", cwd=repo_path)
+    if result.returncode != 0:
+        return f"checkout main failed: {result.stderr.strip()}"
+
     if not _ensure_attribution(repo_path):
-        return None
+        return "attribution setup failed"
 
     pre_head = helpers.get_head(repo_path)
 
@@ -99,11 +109,11 @@ def _do_land(repo_path, branch):
     else:
         result = helpers.run(f"git merge {branch}", cwd=repo_path)
     if result.returncode != 0:
-        return None
+        return f"merge failed: {result.stderr.strip()}"
 
     result = helpers.run("git push", cwd=repo_path)
     if result.returncode != 0:
-        return None
+        return f"push failed: {result.stderr.strip()}"
 
     helpers.save_breadcrumb(repo_path, "land", pre_head=pre_head)
     return True
@@ -133,6 +143,7 @@ def land(names, land_all):
 def _land_all():
     jam_home = helpers.get_jam_home()
     targets = []
+    errors = []
 
     for entry in sorted(os.listdir(jam_home)):
         repo_path = os.path.join(jam_home, entry)
@@ -140,13 +151,15 @@ def _land_all():
             continue
         click.echo(".", nl=False)
         info = _get_landable(repo_path)
-        if info:
+        if isinstance(info, str):
+            errors.append((entry, info))
+        elif info is not None:
             branch, commits = info
             targets.append((entry, repo_path, branch, commits))
 
     click.echo()  # newline after dots
 
-    if not targets:
+    if not targets and not errors:
         click.echo(f"No repos with branches to land {helpers.jam_emoji()}")
         return
 
@@ -155,10 +168,11 @@ def _land_all():
     for repo_name, repo_path, branch, commits in targets:
         local_branch = branch.replace("origin/", "", 1)
         click.echo(".", nl=False)
-        if _do_land(repo_path, branch):
+        result = _do_land(repo_path, branch)
+        if result is True:
             landed.append((repo_name, local_branch, commits))
         else:
-            failed.append((repo_name, local_branch))
+            failed.append((repo_name, local_branch, result))
 
     click.echo()  # newline after dots
 
@@ -168,8 +182,11 @@ def _land_all():
         n = len(commits)
         click.echo(f"Landed {n} commit{'s' if n != 1 else ''} from {local_branch} in {repo_name}.")
 
-    for repo_name, local_branch in failed:
-        click.echo(f"Failed to land {local_branch} in {repo_name}.")
+    for repo_name, local_branch, reason in failed:
+        click.echo(f"Failed to land {local_branch} in {repo_name}: {reason}")
+
+    for repo_name, reason in errors:
+        click.echo(f"Skipped {repo_name}: {reason}")
 
     click.echo(f"Landed {len(landed)} repo{'s' if len(landed) != 1 else ''}.")
 
@@ -178,7 +195,9 @@ def _land_one(name):
     repo_path = helpers.resolve_repo(name or None)
 
     info = _get_landable(repo_path)
-    if not info:
+    if isinstance(info, str):
+        helpers.fail(info)
+    if info is None:
         click.echo(f"No branches to land {helpers.jam_emoji()}")
         return
 
@@ -186,8 +205,9 @@ def _land_one(name):
     local_branch = branch.replace("origin/", "", 1)
     n = len(commits)
 
-    if not _do_land(repo_path, branch):
-        helpers.fail(f"Failed to land {local_branch}.")
+    result = _do_land(repo_path, branch)
+    if result is not True:
+        helpers.fail(f"Failed to land {local_branch}: {result}")
 
     for c in commits:
         click.echo(f"  {c}")
