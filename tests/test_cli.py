@@ -388,6 +388,57 @@ def test_land_all_no_repos(mock_run, tmp_path):
     assert "No repos with branches to land" in result.output
 
 
+@patch("jam.helpers.run")
+@patch("os.path.isdir", return_value=True)
+def test_land_fetch_failure_shows_reason(mock_isdir, mock_run):
+    mock_run.side_effect = [
+        err("could not resolve host"),  # git fetch fails
+    ]
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["land", "myrepo"])
+    assert result.exit_code != 0
+    assert "fetch failed" in result.output
+
+
+@patch("jam.helpers.save_breadcrumb")
+@patch("jam.helpers.get_head", return_value="abc1234")
+@patch("jam.helpers.run")
+@patch("os.path.isdir", return_value=True)
+@patch("jam.helpers.get_jam_config", return_value=None)
+def test_land_merge_failure_shows_reason(mock_config, mock_isdir, mock_run, mock_head, mock_crumb):
+    mock_run.side_effect = [
+        ok(),                   # git fetch
+        ok(BRANCHES_OUTPUT),    # git for-each-ref
+        ok(COMMITS_OUTPUT),     # git log
+        ok(),                   # git checkout main
+        err("merge conflict"),  # git merge fails
+    ]
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["land", "myrepo"])
+    assert result.exit_code != 0
+    assert "merge failed" in result.output
+
+
+@patch("jam.helpers.save_breadcrumb")
+@patch("jam.helpers.get_head", return_value="abc1234")
+@patch("jam.helpers.run")
+@patch("os.path.isdir", return_value=True)
+@patch("jam.helpers.get_jam_config", return_value=None)
+def test_land_push_failure_shows_reason(mock_config, mock_isdir, mock_run, mock_head, mock_crumb):
+    mock_run.side_effect = [
+        ok(),                   # git fetch
+        ok(BRANCHES_OUTPUT),    # git for-each-ref
+        ok(COMMITS_OUTPUT),     # git log
+        ok(),                   # git checkout main
+        ok(),                   # git merge
+        err("rejected"),        # git push fails
+    ]
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["land", "myrepo"])
+    assert result.exit_code != 0
+    assert "push failed" in result.output
+
+
 @patch("jam.helpers.save_breadcrumb")
 @patch("jam.helpers.get_head", return_value="abc1234")
 @patch("jam.helpers.run")
