@@ -116,6 +116,11 @@ def land(name, land_all):
     """Merge the latest branch into main."""
     if land_all:
         _land_all()
+    elif "," in name:
+        for part in name.split(","):
+            part = part.strip()
+            if part:
+                _land_one(part)
     else:
         _land_one(name)
 

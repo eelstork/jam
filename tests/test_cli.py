@@ -388,6 +388,34 @@ def test_land_all_no_repos(mock_run, tmp_path):
     assert "No repos with branches to land" in result.output
 
 
+@patch("jam.helpers.save_breadcrumb")
+@patch("jam.helpers.get_head", return_value="abc1234")
+@patch("jam.helpers.run")
+@patch("os.path.isdir", return_value=True)
+@patch("jam.helpers.get_jam_config", return_value=None)
+def test_land_csv(mock_config, mock_isdir, mock_run, mock_head, mock_crumb):
+    mock_run.side_effect = [
+        # first repo (alpha)
+        ok(),                   # git fetch
+        ok(BRANCHES_OUTPUT),    # git for-each-ref
+        ok(COMMITS_OUTPUT),     # git log
+        ok(),                   # git checkout main
+        ok(),                   # git merge
+        ok(),                   # git push
+        # second repo (beta)
+        ok(),                   # git fetch
+        ok(BRANCHES_OUTPUT),    # git for-each-ref
+        ok(COMMITS_OUTPUT),     # git log
+        ok(),                   # git checkout main
+        ok(),                   # git merge
+        ok(),                   # git push
+    ]
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["land", "alpha, beta"])
+    assert result.exit_code == 0
+    assert result.output.count("Landed 4 commits from feat-branch") == 2
+
+
 # --- delete ---
 
 
