@@ -411,7 +411,7 @@ def test_land_csv(mock_config, mock_isdir, mock_run, mock_head, mock_crumb):
         ok(),                   # git push
     ]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
-    result = runner.invoke(main, ["land", "alpha, beta"])
+    result = runner.invoke(main, ["land", "alpha,", "beta"])
     assert result.exit_code == 0
     assert result.output.count("Landed 4 commits from feat-branch") == 2
 
