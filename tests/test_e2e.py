@@ -142,7 +142,6 @@ class TestLifecycle:
     """Sequential tests exercising the core jam workflow."""
 
     repo_name = _repo_name()
-    repo2_name = _repo_name()
 
     # -- new ----------------------------------------------------------------
 
@@ -229,29 +228,26 @@ class TestLifecycle:
         repo_path = os.path.join(env.jam_home, self.repo_name)
         assert not os.path.exists(os.path.join(repo_path, "feature.txt"))
 
-    # -- clone --------------------------------------------------------------
-
-    def test_clone(self, env):
-        env.created_repos.append(self.repo2_name)
-        result = env.runner.invoke(
-            main, ["clone", self.repo_name, self.repo2_name],
-        )
-        assert result.exit_code == 0, result.output
-        assert "Cloned" in result.output
-
-        repo2_path = os.path.join(env.jam_home, self.repo2_name)
-        assert os.path.isdir(repo2_path)
-        # Should have the README from the source
-        assert os.path.isfile(os.path.join(repo2_path, "README.md"))
-
     # -- delete -------------------------------------------------------------
 
     def test_delete(self, env):
-        repo2_path = os.path.join(env.jam_home, self.repo2_name)
-        result = env.runner.invoke(main, ["delete", self.repo2_name], input="y\n")
+        repo_path = os.path.join(env.jam_home, self.repo_name)
+        result = env.runner.invoke(main, ["delete", self.repo_name], input="y\n")
         assert result.exit_code == 0, result.output
         assert "Deleted" in result.output
-        assert not os.path.isdir(repo2_path)
+        assert not os.path.isdir(repo_path)
+
+    # -- clone --------------------------------------------------------------
+
+    def test_clone(self, env):
+        # repo was deleted locally above but still exists on GitHub
+        result = env.runner.invoke(main, ["clone", self.repo_name])
+        assert result.exit_code == 0, result.output
+        assert "Cloned" in result.output
+
+        repo_path = os.path.join(env.jam_home, self.repo_name)
+        assert os.path.isdir(repo_path)
+        assert os.path.isfile(os.path.join(repo_path, "README.md"))
 
 
 class TestCooldownAndStats:

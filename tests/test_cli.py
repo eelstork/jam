@@ -192,7 +192,7 @@ def test_down_without_name_uses_cwd(mock_cwd, mock_run, mock_head, mock_crumb):
 @patch("jam.helpers.get_gh_user", return_value="testuser")
 @patch("jam.helpers.run")
 @patch("jam.helpers.is_repo", return_value=False)
-def test_down_clones_if_not_local(mock_is_repo, mock_run, mock_gh_user):
+def test_down_delegates_to_clone_if_not_local(mock_is_repo, mock_run, mock_gh_user):
     mock_run.side_effect = [ok(), ok()]  # gh repo view, git clone
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["down", "newrepo"])
@@ -254,39 +254,40 @@ def test_list_info_no_readme(tmp_path):
 # --- clone ---
 
 
+@patch("jam.helpers.get_gh_user", return_value="testuser")
 @patch("jam.helpers.run")
-@patch("shutil.copytree")
-@patch("builtins.open", mock_open())
-@patch("os.path.exists", return_value=False)
-@patch("os.path.isdir", return_value=True)
-def test_clone_creates_new_repo(mock_isdir, mock_exists, mock_copy, mock_run):
-    mock_run.side_effect = [
-        ok("testuser"),  # gh api user
-        err(),           # gh repo view (doesn't exist — good)
-        ok(),            # git init
-        ok(),            # git checkout -b main
-        ok(),            # gh repo create
-        ok(),            # git remote add
-        ok(),            # git add -A
-        ok(),            # git commit
-        ok(),            # git push
-    ]
+@patch("jam.helpers.is_repo", return_value=False)
+def test_clone_from_remote(mock_is_repo, mock_run, mock_gh_user):
+    mock_run.side_effect = [ok(), ok()]  # gh repo view, git clone
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
-    result = runner.invoke(main, ["clone", "source", "target", "new desc"])
+    result = runner.invoke(main, ["clone", "myrepo"])
     assert result.exit_code == 0
-    assert "Cloned source as testuser/target" in result.output
+    assert "Cloned" in result.output
+    mock_run.assert_any_call("gh repo view testuser/myrepo")
+    mock_run.assert_any_call(
+        "git clone https://github.com/testuser/myrepo.git /tmp/dev/myrepo"
+    )
 
 
+@patch("jam.helpers.get_gh_user", return_value="testuser")
 @patch("jam.helpers.run")
-@patch("os.path.isdir", return_value=True)
-def test_clone_fails_when_target_exists(mock_isdir, mock_run):
+@patch("jam.helpers.is_repo", return_value=False)
+def test_clone_fails_if_not_on_remote(mock_is_repo, mock_run, mock_gh_user):
     mock_run.side_effect = [
-        ok("testuser"),  # gh api user
-        ok(),            # gh repo view (exists — bad)
+        CompletedProcess(args="", returncode=1, stdout="", stderr="not found")
     ]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
-    result = runner.invoke(main, ["clone", "source", "target"])
+    result = runner.invoke(main, ["clone", "nonexistent"])
     assert result.exit_code != 0
+    assert "not found" in result.output
+
+
+@patch("jam.helpers.is_repo", return_value=True)
+def test_clone_fails_if_already_local(mock_is_repo):
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["clone", "existing"])
+    assert result.exit_code != 0
+    assert "already exists" in result.output
 
 
 # --- land ---

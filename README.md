@@ -41,10 +41,10 @@ Or set the `JAM_HOME` environment variable if you prefer.
 | | |
 |---|---|
 | 🔺`jam new NAME ["DESCRIPTION"]` | Spin up a repo on GitHub, clone it locally, push a readme. `--public` to make it public. Alias: `jam create`. [new.py](src/jam/commands/new.py) |
-| 🔺`jam clone SOURCE TARGET ["DESCRIPTION"]` | Copy a repo as a brand new repo. Fresh git history, new GitHub remote. Great for templates. `--public` to make it public. [clone.py](src/jam/commands/clone.py) |
+| 🔷`jam clone NAME` | Clone a repo from your GitHub account into the local jam root. Useful when a repo exists on GitHub but not locally. Also invoked automatically by `jam down NAME` when the repo isn't found locally. [clone.py](src/jam/commands/clone.py) |
 | 🟡`jam list` | See what you've got. `--info` pulls the first line from each readme. [list.py](src/jam/commands/list.py) |
 | 🔺`jam up "MESSAGE"` | Add everything, commit, push. One shot. `--name REPO` to target a specific repo, `--force` if you need it. [up.py](src/jam/commands/up.py) |
-| 🔷`jam down [NAME]` | Pull latest. `--force` throws away local changes first. [down.py](src/jam/commands/down.py) |
+| 🔷`jam down [NAME]` | Pull latest. If the repo isn't local, delegates to `jam clone`. `--force` throws away local changes first. [down.py](src/jam/commands/down.py) |
 | 🔺`jam land [NAME]` | Merge the most recent branch into main and show all landed commits. `--all` lands across all repos at once. [land.py](src/jam/commands/land.py) |
 | 🔷`jam undo [NAME]` | Reverse the last jam command on a repo. Works with `up`, `down`, and `land`. [undo.py](src/jam/commands/undo.py) |
 | 🔷`jam delete NAME` | Remove a repo locally. Tags the remote for later cleanup. Re-clone from GitHub to recover. [delete.py](src/jam/commands/delete.py) |
@@ -73,7 +73,7 @@ If you use Claude Code, jam can restore your personal authorship on AI-assisted 
 
 | | |
 |---|---|
-| 🔺`jam claim-commits` | Set up commit attribution. Removes "Claude" from AI-assisted commits so they show your name; commits remain traceable. New repos created with `jam new` or `jam clone` get attribution automatically after setup. [claim_commits.py](src/jam/commands/claim_commits.py) |
+| 🔺`jam claim-commits` | Set up commit attribution. Removes "Claude" from AI-assisted commits so they show your name; commits remain traceable. New repos created with `jam new` get attribution automatically after setup. [claim_commits.py](src/jam/commands/claim_commits.py) |
 | 🔷`jam reclaim [NAME] [-c N]` | Rewrite commit history on the current branch to reclaim authorship on `@anthropic.com` commits. If a velocity baseline is configured, also tags commits with velocity markers. Use `--commits N` (or `-c N`) to limit how far back reclaim looks instead of processing the entire branch. Requires a clean working tree; force pushes the rewritten branch automatically. Don't use this while Claude Code is working on a diff, as it may create (recoverable, but still) confusion. [reclaim.py](src/jam/commands/reclaim.py) |
 | 🟡`jam velocity [NAME]` | Measure coding velocity for a repo. Shows intrinsic (human) and machine-assisted velocity with an acceleration factor. Pick a time period interactively: past week, past month, or all time. [velocity_cmd.py](src/jam/commands/velocity_cmd.py) |
 | 🟡`jam tag-velocity enable/disable` | Toggle velocity tagging on commits. When enabled, `jam land` and `jam reclaim` add velocity markers. [tag_velocity.py](src/jam/commands/tag_velocity.py) |

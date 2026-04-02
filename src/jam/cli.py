@@ -30,7 +30,7 @@ from jam.commands.stats import stats
 
 COMMANDS = [
     ("new",    "Create a new repo",               new),
-    ("clone",  "Clone a repo as a new repo",       clone),
+    ("clone",  "Clone a repo from GitHub",          clone),
     ("list",   "List repos",                       list_repos),
     ("up",     "Add all, commit, and push",        up),
     ("down",   "Pull latest changes",              down),
