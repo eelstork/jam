@@ -168,7 +168,7 @@ def prune():
 
     while True:
         selected_indices = _multi_pick(
-            repos, header="Select repos to delete (↑↓ navigate, x toggle, enter confirm):"
+            repos, header="Select empty (readme only) repos to remove locally (↑↓ navigate, x toggle, enter confirm):"
         )
 
         if selected_indices is None or len(selected_indices) == 0:
