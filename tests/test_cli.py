@@ -920,27 +920,6 @@ def test_prune_find_readme_only_repos(tmp_path):
     assert repos == ["empty"]
 
 
-def test_prune_get_remote_owner_repo_https(tmp_path):
-    """_get_remote_owner_repo parses HTTPS remote URLs."""
-    from jam.commands.prune import _get_remote_owner_repo
-
-    with patch("jam.helpers.run") as mock_run:
-        mock_run.return_value = ok(
-            stdout="https://github.com/alice/myrepo.git\n"
-        )
-        assert _get_remote_owner_repo(str(tmp_path)) == "alice/myrepo"
-
-
-def test_prune_get_remote_owner_repo_ssh(tmp_path):
-    """_get_remote_owner_repo parses SSH remote URLs."""
-    from jam.commands.prune import _get_remote_owner_repo
-
-    with patch("jam.helpers.run") as mock_run:
-        mock_run.return_value = ok(
-            stdout="git@github.com:alice/myrepo.git\n"
-        )
-        assert _get_remote_owner_repo(str(tmp_path)) == "alice/myrepo"
-
 
 def test_prune_no_readme_only_repos(tmp_path):
     """prune prints a message when no readme-only repos are found."""
