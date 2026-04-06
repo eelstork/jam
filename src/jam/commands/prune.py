@@ -181,13 +181,13 @@ def prune():
             click.echo(f"  {name}")
 
         choice = click.prompt(
-            "\n[y] delete, [n] cancel, [r] review list",
-            type=click.Choice(["y", "n", "r"], case_sensitive=False),
-            default="y",
+            "\n[D]elete, [c]ancel, [r]eview",
+            type=click.Choice(["d", "c", "r"], case_sensitive=False),
+            default="d",
             show_choices=False,
         )
 
-        if choice == "n":
+        if choice == "c":
             click.echo("Aborted.")
             return
         if choice == "r":
