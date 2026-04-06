@@ -197,21 +197,24 @@ def prune():
         # choice == "d" — delete local only
         import shutil
 
+        failed_paths = []
+
         def _on_rm_error(_func, path, _exc_info):
             try:
                 os.chmod(path, 0o700)
                 _func(path)
             except PermissionError:
-                pass
+                failed_paths.append(path)
 
         deleted = 0
         for name in selected_names:
             repo_path = os.path.join(jam_home, name)
             click.echo(f"Removing {name}…", nl=False)
+            failed_paths.clear()
             try:
                 shutil.rmtree(repo_path, onerror=_on_rm_error)
-                if os.path.exists(repo_path):
-                    click.echo(" FAILED (files still locked)")
+                if failed_paths:
+                    click.echo(f" FAILED (cannot delete; locked: {failed_paths[0]})")
                 else:
                     click.echo(" done")
                     deleted += 1
