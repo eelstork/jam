@@ -149,20 +149,6 @@ def _multi_pick(items, header=None):
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 
-def _get_remote_owner_repo(repo_path):
-    """Extract owner/repo from the GitHub remote, or None."""
-    result = helpers.run("git remote get-url origin", cwd=repo_path)
-    if result.returncode != 0:
-        return None
-    url = result.stdout.strip()
-    # Handle SSH (git@github.com:owner/repo.git) and HTTPS
-    for prefix in ("git@github.com:", "https://github.com/"):
-        if url.startswith(prefix):
-            slug = url[len(prefix):]
-            slug = slug.removesuffix(".git")
-            return slug
-    return None
-
 
 @click.command()
 def prune():
@@ -208,24 +194,12 @@ def prune():
             click.echo()
             continue
 
-        # choice == "y" — delete local + remote
+        # choice == "y" — delete local only
         import shutil
 
         for name in selected_names:
             repo_path = os.path.join(jam_home, name)
-            slug = _get_remote_owner_repo(repo_path)
-
-            # Delete GitHub remote
-            if slug:
-                click.echo(f"Deleting {slug} on GitHub…", nl=False)
-                result = helpers.run(f"gh repo delete {slug} --yes")
-                if result.returncode == 0:
-                    click.echo(" done")
-                else:
-                    click.echo(f" FAILED: {result.stderr.strip()}")
-
-            # Delete local
-            click.echo(f"Removing local {name}…", nl=False)
+            click.echo(f"Removing {name}…", nl=False)
             try:
                 shutil.rmtree(repo_path)
             except PermissionError:
