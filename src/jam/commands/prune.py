@@ -1,3 +1,4 @@
+import os
 import sys
 
 import click
@@ -5,46 +6,41 @@ import click
 from jam import helpers
 
 
-def _is_readme_only(user, name):
-    """Check if a GitHub repo contains only a README (no other meaningful files).
+def _is_readme_only(repo_path):
+    """Check if a local repo contains only a README (no other meaningful files).
 
-    Uses the default branch tree via gh api.  Returns True when every
-    top-level entry is a README variant or a dotfile config dir like .claude/.
+    Returns True when every tracked file in the repo is a README variant,
+    .gitignore, or dotfile config like .claude/.
     """
-    result = helpers.run(
-        f"gh api repos/{user}/{name}/git/trees/HEAD --jq '.tree[].path'"
-    )
+    result = helpers.run("git ls-files", cwd=repo_path)
     if result.returncode != 0:
         return False
     paths = [p.strip() for p in result.stdout.strip().splitlines() if p.strip()]
     if not paths:
         return True
     readme_names = {"README.md", "README", "README.txt", "readme.md"}
-    ignorable = {".gitignore", ".claude", ".github"}
+    ignorable = {".gitignore"}
+    ignorable_prefixes = (".claude/", ".github/")
     for p in paths:
         if p in readme_names or p in ignorable:
+            continue
+        if any(p.startswith(pfx) for pfx in ignorable_prefixes):
             continue
         return False
     return True
 
 
-def _fetch_readme_only_repos(user):
-    """Return list of repo names owned by *user* that only have a README."""
-    result = helpers.run(
-        f"gh repo list {user} --limit 200 --json name --jq '.[].name'"
-    )
-    if result.returncode != 0:
-        helpers.fail("Could not list repos. Is gh authenticated?")
-    names = [n.strip() for n in result.stdout.strip().splitlines() if n.strip()]
-    readme_only = []
-    for name in names:
-        click.echo(f"  checking {name}…", nl=False)
-        if _is_readme_only(user, name):
-            readme_only.append(name)
-            click.echo(" readme-only")
-        else:
-            click.echo(" has content")
-    return readme_only
+def _find_readme_only_repos():
+    """Return list of repo names in JAM_HOME that only have a README."""
+    jam_home = helpers.get_jam_home()
+    repos = []
+    for entry in sorted(os.listdir(jam_home)):
+        path = os.path.join(jam_home, entry)
+        if not os.path.isdir(os.path.join(path, ".git")):
+            continue
+        if _is_readme_only(path):
+            repos.append(entry)
+    return repos
 
 
 def _multi_pick(items, header=None):
@@ -154,21 +150,36 @@ def _multi_pick(items, header=None):
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 
+def _get_remote_owner_repo(repo_path):
+    """Extract owner/repo from the GitHub remote, or None."""
+    result = helpers.run("git remote get-url origin", cwd=repo_path)
+    if result.returncode != 0:
+        return None
+    url = result.stdout.strip()
+    # Handle SSH (git@github.com:owner/repo.git) and HTTPS
+    for prefix in ("git@github.com:", "https://github.com/"):
+        if url.startswith(prefix):
+            slug = url[len(prefix):]
+            slug = slug.removesuffix(".git")
+            return slug
+    return None
+
+
 @click.command()
 def prune():
     """Delete GitHub repos that only contain a README."""
     if not sys.stdin.isatty():
         helpers.fail("prune requires an interactive terminal.")
 
-    user = helpers.get_gh_user()
-    click.echo(f"Scanning repos for {user}…\n")
-    repos = _fetch_readme_only_repos(user)
+    jam_home = helpers.get_jam_home()
+    click.echo("Scanning repos in jam home…\n")
+    repos = _find_readme_only_repos()
 
     if not repos:
         click.echo("No readme-only repos found.")
         return
 
-    click.echo(f"\nFound {len(repos)} readme-only repo(s).\n")
+    click.echo(f"Found {len(repos)} readme-only repo(s).\n")
 
     while True:
         selected_indices = _multi_pick(
@@ -182,7 +193,7 @@ def prune():
         selected_names = [repos[i] for i in selected_indices]
         click.echo("Will delete:")
         for name in selected_names:
-            click.echo(f"  {user}/{name}")
+            click.echo(f"  {name}")
 
         choice = click.prompt(
             "\n[y] delete, [n] cancel, [r] review list",
@@ -198,14 +209,32 @@ def prune():
             click.echo()
             continue
 
-        # choice == "y" — delete
+        # choice == "y" — delete local + remote
+        import shutil
+
         for name in selected_names:
-            click.echo(f"Deleting {user}/{name}…", nl=False)
-            result = helpers.run(f"gh repo delete {user}/{name} --yes")
-            if result.returncode == 0:
-                click.echo(" done")
-            else:
-                click.echo(f" FAILED: {result.stderr.strip()}")
+            repo_path = os.path.join(jam_home, name)
+            slug = _get_remote_owner_repo(repo_path)
+
+            # Delete GitHub remote
+            if slug:
+                click.echo(f"Deleting {slug} on GitHub…", nl=False)
+                result = helpers.run(f"gh repo delete {slug} --yes")
+                if result.returncode == 0:
+                    click.echo(" done")
+                else:
+                    click.echo(f" FAILED: {result.stderr.strip()}")
+
+            # Delete local
+            click.echo(f"Removing local {name}…", nl=False)
+            try:
+                shutil.rmtree(repo_path)
+            except PermissionError:
+                def _on_rm_error(_func, path, _exc_info):
+                    os.chmod(path, 0o700)
+                    _func(path)
+                shutil.rmtree(repo_path, onerror=_on_rm_error)
+            click.echo(" done")
 
         click.echo(f"\nPruned {len(selected_names)} repo(s).")
         return
