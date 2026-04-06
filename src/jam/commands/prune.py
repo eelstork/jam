@@ -9,24 +9,23 @@ from jam import helpers
 def _is_readme_only(repo_path):
     """Check if a local repo contains only a README (no other meaningful files).
 
-    Returns True when every tracked file in the repo is a README variant,
-    .gitignore, or dotfile config like .claude/.
+    Checks both tracked files (git ls-files) and the working tree to catch
+    repos with untracked content too.  Returns True only when every file
+    is a README variant, .gitignore, or dotfile config like .claude/.
     """
-    result = helpers.run("git ls-files", cwd=repo_path)
-    if result.returncode != 0:
-        return False
-    paths = [p.strip() for p in result.stdout.strip().splitlines() if p.strip()]
-    if not paths:
-        return True
     readme_names = {"README.md", "README", "README.txt", "readme.md"}
     ignorable = {".gitignore"}
-    ignorable_prefixes = (".claude/", ".github/")
-    for p in paths:
-        if p in readme_names or p in ignorable:
-            continue
-        if any(p.startswith(pfx) for pfx in ignorable_prefixes):
-            continue
-        return False
+    ignorable_dirs = {".git", ".claude", ".github"}
+
+    # Walk the working tree — catches untracked files too
+    for dirpath, dirnames, filenames in os.walk(repo_path):
+        # Skip ignorable dot-directories
+        dirnames[:] = [d for d in dirnames if d not in ignorable_dirs]
+        for fname in filenames:
+            rel = os.path.relpath(os.path.join(dirpath, fname), repo_path)
+            if rel in readme_names or rel in ignorable:
+                continue
+            return False
     return True
 
 
