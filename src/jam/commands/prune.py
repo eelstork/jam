@@ -168,7 +168,7 @@ def prune():
 
     while True:
         selected_indices = _multi_pick(
-            repos, header="Select repos to delete (↑↓ navigate, x toggle, enter confirm):"
+            repos, header="Select empty (readme only) repos to remove locally (↑↓ navigate, x toggle, enter confirm):"
         )
 
         if selected_indices is None or len(selected_indices) == 0:
@@ -181,33 +181,42 @@ def prune():
             click.echo(f"  {name}")
 
         choice = click.prompt(
-            "\n[y] delete, [n] cancel, [r] review list",
-            type=click.Choice(["y", "n", "r"], case_sensitive=False),
-            default="y",
+            "\n[D]elete, [c]ancel, [r]eview",
+            type=click.Choice(["d", "c", "r"], case_sensitive=False),
+            default="d",
             show_choices=False,
         )
 
-        if choice == "n":
+        if choice == "c":
             click.echo("Aborted.")
             return
         if choice == "r":
             click.echo()
             continue
 
-        # choice == "y" — delete local only
+        # choice == "d" — delete local only
         import shutil
 
+        def _on_rm_error(_func, path, _exc_info):
+            try:
+                os.chmod(path, 0o700)
+                _func(path)
+            except PermissionError:
+                pass
+
+        deleted = 0
         for name in selected_names:
             repo_path = os.path.join(jam_home, name)
             click.echo(f"Removing {name}…", nl=False)
             try:
-                shutil.rmtree(repo_path)
-            except PermissionError:
-                def _on_rm_error(_func, path, _exc_info):
-                    os.chmod(path, 0o700)
-                    _func(path)
                 shutil.rmtree(repo_path, onerror=_on_rm_error)
-            click.echo(" done")
+                if os.path.exists(repo_path):
+                    click.echo(" FAILED (files still locked)")
+                else:
+                    click.echo(" done")
+                    deleted += 1
+            except Exception as exc:
+                click.echo(f" FAILED ({exc})")
 
-        click.echo(f"\nPruned {len(selected_names)} repo(s).")
+        click.echo(f"\nPruned {deleted} repo(s).")
         return
