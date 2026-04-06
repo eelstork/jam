@@ -214,12 +214,12 @@ def prune():
             try:
                 shutil.rmtree(repo_path, onerror=_on_rm_error)
                 if failed_paths:
-                    click.echo(f" FAILED (cannot delete; locked: {failed_paths[0]})")
+                    click.echo(f" cannot delete; locked: {failed_paths[0]}")
                 else:
                     click.echo(" done")
                     deleted += 1
             except Exception as exc:
-                click.echo(f" FAILED ({exc})")
+                click.echo(f" cannot delete ({exc})")
 
         click.echo(f"\nPruned {deleted} repo(s).")
         return
