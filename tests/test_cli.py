@@ -841,6 +841,108 @@ def test_stats_clear(tmp_path):
     assert not log.exists()
 
 
+# --- prune ---
+
+
+def test_prune_finds_readme_only(tmp_path):
+    """_is_readme_only returns True for a repo with only a README."""
+    from jam.commands.prune import _is_readme_only
+
+    repo = tmp_path / "empty-proj"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+    with patch("jam.helpers.run") as mock_run:
+        mock_run.return_value = ok(stdout="README.md\n")
+        assert _is_readme_only(str(repo)) is True
+
+
+def test_prune_detects_content(tmp_path):
+    """_is_readme_only returns False when non-readme files are tracked."""
+    from jam.commands.prune import _is_readme_only
+
+    repo = tmp_path / "real-proj"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+    with patch("jam.helpers.run") as mock_run:
+        mock_run.return_value = ok(stdout="README.md\nsrc/main.py\n")
+        assert _is_readme_only(str(repo)) is False
+
+
+def test_prune_ignores_dotfiles(tmp_path):
+    """_is_readme_only ignores .gitignore and .claude/ files."""
+    from jam.commands.prune import _is_readme_only
+
+    repo = tmp_path / "dotfiles-proj"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+    with patch("jam.helpers.run") as mock_run:
+        mock_run.return_value = ok(
+            stdout="README.md\n.gitignore\n.claude/settings.json\n"
+        )
+        assert _is_readme_only(str(repo)) is True
+
+
+def test_prune_find_readme_only_repos(tmp_path):
+    """_find_readme_only_repos lists only readme-only repos from JAM_HOME."""
+    from jam.commands.prune import _find_readme_only_repos
+
+    # Create two repos: one readme-only, one with content
+    for name in ("empty", "real"):
+        repo = tmp_path / name
+        repo.mkdir()
+        (repo / ".git").mkdir()
+
+    def mock_ls_files(cmd, **kwargs):
+        cwd = kwargs.get("cwd", "")
+        if "empty" in cwd:
+            return ok(stdout="README.md\n")
+        return ok(stdout="README.md\nsrc/app.py\n")
+
+    with patch("jam.helpers.run", side_effect=mock_ls_files), \
+         patch("jam.helpers.get_jam_home", return_value=str(tmp_path)):
+        repos = _find_readme_only_repos()
+    assert repos == ["empty"]
+
+
+def test_prune_get_remote_owner_repo_https(tmp_path):
+    """_get_remote_owner_repo parses HTTPS remote URLs."""
+    from jam.commands.prune import _get_remote_owner_repo
+
+    with patch("jam.helpers.run") as mock_run:
+        mock_run.return_value = ok(
+            stdout="https://github.com/alice/myrepo.git\n"
+        )
+        assert _get_remote_owner_repo(str(tmp_path)) == "alice/myrepo"
+
+
+def test_prune_get_remote_owner_repo_ssh(tmp_path):
+    """_get_remote_owner_repo parses SSH remote URLs."""
+    from jam.commands.prune import _get_remote_owner_repo
+
+    with patch("jam.helpers.run") as mock_run:
+        mock_run.return_value = ok(
+            stdout="git@github.com:alice/myrepo.git\n"
+        )
+        assert _get_remote_owner_repo(str(tmp_path)) == "alice/myrepo"
+
+
+def test_prune_no_readme_only_repos(tmp_path):
+    """prune prints a message when no readme-only repos are found."""
+    repo = tmp_path / "real"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+
+    with patch("jam.helpers.run") as mock_run, \
+         patch("jam.commands.prune.sys") as mock_sys:
+        mock_sys.stdin.isatty.return_value = True
+        mock_sys.platform = "linux"
+        mock_run.return_value = ok(stdout="README.md\nsrc/app.py\n")
+        runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+        result = runner.invoke(main, ["prune"])
+    assert result.exit_code == 0
+    assert "No readme-only repos found" in result.output
+
+
 def test_log_command_writes_to_log(tmp_path):
     log = tmp_path / "usage.log"
     with patch("jam.helpers._usage_log_path", return_value=str(log)):
