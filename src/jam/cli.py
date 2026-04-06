@@ -26,6 +26,7 @@ from jam.commands.retro import retro
 from jam.commands.remain import remain
 from jam.commands.remix import remix
 from jam.commands.stats import stats
+from jam.commands.prune import prune
 
 
 COMMANDS = [
@@ -52,6 +53,7 @@ COMMANDS = [
     ("remix",    "Itemize and share CLAUDE.md settings", remix),
     ("stats",    "Show command usage stats",       stats),
     ("remain",   "Fix master/main branch confusion", remain),
+    ("prune",    "Delete readme-only repos on GitHub", prune),
 ]
 
 
@@ -140,3 +142,4 @@ main.add_command(retro)
 main.add_command(remix)
 main.add_command(stats)
 main.add_command(remain)
+main.add_command(prune)
