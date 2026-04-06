@@ -851,21 +851,34 @@ def test_prune_finds_readme_only(tmp_path):
     repo = tmp_path / "empty-proj"
     repo.mkdir()
     (repo / ".git").mkdir()
-    with patch("jam.helpers.run") as mock_run:
-        mock_run.return_value = ok(stdout="README.md\n")
-        assert _is_readme_only(str(repo)) is True
+    (repo / "README.md").write_text("# hello\n")
+    assert _is_readme_only(str(repo)) is True
 
 
 def test_prune_detects_content(tmp_path):
-    """_is_readme_only returns False when non-readme files are tracked."""
+    """_is_readme_only returns False when non-readme files exist."""
     from jam.commands.prune import _is_readme_only
 
     repo = tmp_path / "real-proj"
     repo.mkdir()
     (repo / ".git").mkdir()
-    with patch("jam.helpers.run") as mock_run:
-        mock_run.return_value = ok(stdout="README.md\nsrc/main.py\n")
-        assert _is_readme_only(str(repo)) is False
+    (repo / "README.md").write_text("# hello\n")
+    src = repo / "src"
+    src.mkdir()
+    (src / "main.py").write_text("print('hi')\n")
+    assert _is_readme_only(str(repo)) is False
+
+
+def test_prune_detects_extra_markdown(tmp_path):
+    """_is_readme_only returns False when extra .md files exist."""
+    from jam.commands.prune import _is_readme_only
+
+    repo = tmp_path / "docs-proj"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+    (repo / "README.md").write_text("# hello\n")
+    (repo / "notes.md").write_text("some notes\n")
+    assert _is_readme_only(str(repo)) is False
 
 
 def test_prune_ignores_dotfiles(tmp_path):
@@ -875,31 +888,34 @@ def test_prune_ignores_dotfiles(tmp_path):
     repo = tmp_path / "dotfiles-proj"
     repo.mkdir()
     (repo / ".git").mkdir()
-    with patch("jam.helpers.run") as mock_run:
-        mock_run.return_value = ok(
-            stdout="README.md\n.gitignore\n.claude/settings.json\n"
-        )
-        assert _is_readme_only(str(repo)) is True
+    (repo / "README.md").write_text("# hello\n")
+    (repo / ".gitignore").write_text("*.pyc\n")
+    claude_dir = repo / ".claude"
+    claude_dir.mkdir()
+    (claude_dir / "settings.json").write_text("{}\n")
+    assert _is_readme_only(str(repo)) is True
 
 
 def test_prune_find_readme_only_repos(tmp_path):
     """_find_readme_only_repos lists only readme-only repos from JAM_HOME."""
     from jam.commands.prune import _find_readme_only_repos
 
-    # Create two repos: one readme-only, one with content
-    for name in ("empty", "real"):
-        repo = tmp_path / name
-        repo.mkdir()
-        (repo / ".git").mkdir()
+    # readme-only repo
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    (empty / ".git").mkdir()
+    (empty / "README.md").write_text("# empty\n")
 
-    def mock_ls_files(cmd, **kwargs):
-        cwd = kwargs.get("cwd", "")
-        if "empty" in cwd:
-            return ok(stdout="README.md\n")
-        return ok(stdout="README.md\nsrc/app.py\n")
+    # repo with real content
+    real = tmp_path / "real"
+    real.mkdir()
+    (real / ".git").mkdir()
+    (real / "README.md").write_text("# real\n")
+    src = real / "src"
+    src.mkdir()
+    (src / "app.py").write_text("pass\n")
 
-    with patch("jam.helpers.run", side_effect=mock_ls_files), \
-         patch("jam.helpers.get_jam_home", return_value=str(tmp_path)):
+    with patch("jam.helpers.get_jam_home", return_value=str(tmp_path)):
         repos = _find_readme_only_repos()
     assert repos == ["empty"]
 
@@ -931,12 +947,14 @@ def test_prune_no_readme_only_repos(tmp_path):
     repo = tmp_path / "real"
     repo.mkdir()
     (repo / ".git").mkdir()
+    (repo / "README.md").write_text("# real\n")
+    src = repo / "src"
+    src.mkdir()
+    (src / "app.py").write_text("pass\n")
 
-    with patch("jam.helpers.run") as mock_run, \
-         patch("jam.commands.prune.sys") as mock_sys:
+    with patch("jam.commands.prune.sys") as mock_sys:
         mock_sys.stdin.isatty.return_value = True
         mock_sys.platform = "linux"
-        mock_run.return_value = ok(stdout="README.md\nsrc/app.py\n")
         runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
         result = runner.invoke(main, ["prune"])
     assert result.exit_code == 0
