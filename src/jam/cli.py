@@ -27,6 +27,7 @@ from jam.commands.remain import remain
 from jam.commands.remix import remix
 from jam.commands.stats import stats
 from jam.commands.prune import prune
+from jam.commands.tree import tree
 
 
 COMMANDS = [
@@ -54,6 +55,7 @@ COMMANDS = [
     ("stats",    "Show command usage stats",       stats),
     ("remain",   "Fix master/main branch confusion", remain),
     ("prune",    "Delete readme-only repos on GitHub", prune),
+    ("tree",     "Show directory tree for a repo",    tree),
 ]
 
 
@@ -143,3 +145,4 @@ main.add_command(remix)
 main.add_command(stats)
 main.add_command(remain)
 main.add_command(prune)
+main.add_command(tree)
