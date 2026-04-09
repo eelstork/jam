@@ -28,6 +28,7 @@ from jam.commands.remix import remix
 from jam.commands.stats import stats
 from jam.commands.prune import prune
 from jam.commands.tree import tree
+from jam.commands.copy import copy
 
 
 COMMANDS = [
@@ -56,6 +57,7 @@ COMMANDS = [
     ("remain",   "Fix master/main branch confusion", remain),
     ("prune",    "Delete readme-only repos on GitHub", prune),
     ("tree",     "Show directory tree for a repo",    tree),
+    ("copy",     "Copy a repo as a new repo",        copy),
 ]
 
 
@@ -146,3 +148,4 @@ main.add_command(stats)
 main.add_command(remain)
 main.add_command(prune)
 main.add_command(tree)
+main.add_command(copy)
