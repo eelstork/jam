@@ -250,6 +250,45 @@ class TestLifecycle:
         assert os.path.isfile(os.path.join(repo_path, "README.md"))
 
 
+class TestCopy:
+    """Test copying a repo as a new repo."""
+
+    src_name = _repo_name()
+    dst_name = _repo_name()
+
+    def test_copy_with_as(self, env):
+        # Create the source repo first
+        env.created_repos.append(self.src_name)
+        result = env.runner.invoke(main, ["new", self.src_name])
+        assert result.exit_code == 0, result.output
+
+        # Add a file so we can verify it gets copied
+        src_path = os.path.join(env.jam_home, self.src_name)
+        with open(os.path.join(src_path, "template.txt"), "w") as f:
+            f.write("template content\n")
+        subprocess.run("git add -A", shell=True, cwd=src_path)
+        subprocess.run('git commit -m "add template"', shell=True, cwd=src_path)
+
+        # Copy it
+        env.created_repos.append(self.dst_name)
+        result = env.runner.invoke(main, ["copy", self.src_name, "as", self.dst_name])
+        assert result.exit_code == 0, result.output
+        assert "Created" in result.output
+        assert self.dst_name in result.output
+
+        dst_path = os.path.join(env.jam_home, self.dst_name)
+        assert os.path.isdir(dst_path)
+        assert os.path.isfile(os.path.join(dst_path, "README.md"))
+        assert os.path.isfile(os.path.join(dst_path, "template.txt"))
+
+        # Verify it's a separate repo (different remote)
+        r = subprocess.run(
+            "git remote get-url origin", shell=True,
+            capture_output=True, text=True, cwd=dst_path,
+        )
+        assert self.dst_name in r.stdout
+
+
 class TestCooldownAndStats:
     """Test cooldown and stats commands."""
 

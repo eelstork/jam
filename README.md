@@ -41,6 +41,7 @@ Or set the `JAM_HOME` environment variable if you prefer.
 | | |
 |---|---|
 | 🔺`jam new NAME ["DESCRIPTION"]` | Spin up a repo on GitHub, clone it locally, push a readme. `--public` to make it public. Alias: `jam create`. [new.py](src/jam/commands/new.py) |
+| 🔺`jam copy REPO as NEW` | Copy a repo as a new repo on GitHub. Creates a new private repo, copies all files (minus `.git/`), commits and pushes. Also: `jam copy REPO` prompts for the new name interactively. [copy.py](src/jam/commands/copy.py) |
 | 🔷`jam clone NAME` | Clone a repo from your GitHub account into the local jam root. Useful when a repo exists on GitHub but not locally. Also invoked automatically by `jam down NAME` when the repo isn't found locally. [clone.py](src/jam/commands/clone.py) |
 | 🟡`jam list` | See what you've got. `--info` pulls the first line from each readme. [list.py](src/jam/commands/list.py) |
 | 🔺`jam up "MESSAGE"` | Add everything, commit, push. One shot. `--name REPO` to target a specific repo, `--force` if you need it. [up.py](src/jam/commands/up.py) |
