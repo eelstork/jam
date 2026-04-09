@@ -193,12 +193,11 @@ def test_down_without_name_uses_cwd(mock_cwd, mock_run, mock_head, mock_crumb):
 @patch("jam.helpers.run")
 @patch("jam.helpers.is_repo", return_value=False)
 def test_down_delegates_to_clone_if_not_local(mock_is_repo, mock_run, mock_gh_user):
-    mock_run.side_effect = [ok(), ok()]  # gh repo view, git clone
+    mock_run.side_effect = [ok()]  # git clone
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["down", "newrepo"])
     assert result.exit_code == 0
     assert "Cloned" in result.output
-    mock_run.assert_any_call("gh repo view testuser/newrepo")
     mock_run.assert_any_call(
         "git clone https://github.com/testuser/newrepo.git /tmp/dev/newrepo"
     )
@@ -212,7 +211,7 @@ def test_down_clone_fails_if_not_on_remote(mock_is_repo, mock_run, mock_gh_user)
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["down", "nonexistent"])
     assert result.exit_code != 0
-    assert "not found" in result.output
+    assert "Could not clone" in result.output
 
 
 # --- list ---
@@ -258,12 +257,11 @@ def test_list_info_no_readme(tmp_path):
 @patch("jam.helpers.run")
 @patch("jam.helpers.is_repo", return_value=False)
 def test_clone_from_remote(mock_is_repo, mock_run, mock_gh_user):
-    mock_run.side_effect = [ok(), ok()]  # gh repo view, git clone
+    mock_run.side_effect = [ok()]  # git clone
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["clone", "myrepo"])
     assert result.exit_code == 0
     assert "Cloned" in result.output
-    mock_run.assert_any_call("gh repo view testuser/myrepo")
     mock_run.assert_any_call(
         "git clone https://github.com/testuser/myrepo.git /tmp/dev/myrepo"
     )
@@ -279,7 +277,7 @@ def test_clone_fails_if_not_on_remote(mock_is_repo, mock_run, mock_gh_user):
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["clone", "nonexistent"])
     assert result.exit_code != 0
-    assert "not found" in result.output
+    assert "Could not clone" in result.output
 
 
 @patch("jam.helpers.is_repo", return_value=True)
