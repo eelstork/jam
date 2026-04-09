@@ -51,6 +51,9 @@ Or set the `JAM_HOME` environment variable if you prefer.
 | 🔷`jam delete NAME` | Remove a repo locally. Tags the remote for later cleanup. Re-clone from GitHub to recover. [delete.py](src/jam/commands/delete.py) |
 | 🔷`jam prune` | Interactively select and delete repos that only contain a README. Scans jam home, multi-select with arrow keys and x, removes local copies. [prune.py](src/jam/commands/prune.py) |
 | 🔷`jam edit FILENAME [REPO]` | Open a file in its default application. If no repo is given, searches all repos. If multiple matches are found, pick interactively. [edit.py](src/jam/commands/edit.py) |
+| 🟡`jam tree [NAME] [-L N]` | Show a `.gitignore`-aware directory tree for a repo. Defaults to depth 2, configurable with `-L` (matching Unix `tree` convention). [tree.py](src/jam/commands/tree.py) |
+| 🔺`jam remain` | Fix master/main branch confusion across all repos. Installs a Claude Code `SessionStart` hook that auto-renames local `master` to `main` when the remote only has `main`. `--unset` removes the hook. Skips repos with uncommitted changes. [remain.py](src/jam/commands/remain.py) |
+| 🟡`jam remix` | Itemize and share `CLAUDE.md` settings across repos. Parses directives from every repo's `CLAUDE.md`, summarizes and deduplicates them, then lets you interactively share directives to other repos. Non-interactive mode lists all unique directives. [remix.py](src/jam/commands/remix.py) |
 | 🟡`jam cooldown` | List today's commits (since 7 am) per repo. Quick end-of-day recap. [cooldown.py](src/jam/commands/cooldown.py) |
 | 🟡`jam stats` | Show command usage counts, most used first. Every command invocation is logged locally to `~/.config/jam/usage.log`. `--clear` discards the log. [stats.py](src/jam/commands/stats.py) |
 | 🟡`jam root` | Print the current jam root directory. [root.py](src/jam/commands/root.py) |

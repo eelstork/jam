@@ -938,6 +938,144 @@ def test_prune_no_readme_only_repos(tmp_path):
     assert "No readme-only repos found" in result.output
 
 
+# --- tree ---
+
+
+@patch("jam.helpers.run")
+def test_tree_default_depth(mock_run, tmp_path):
+    """tree should show files up to depth 2 by default."""
+    repo = tmp_path / "myrepo"
+    (repo / ".git").mkdir(parents=True)
+    (repo / "README.md").write_text("# hello\n")
+    (repo / "src").mkdir()
+    (repo / "src" / "main.py").write_text("pass\n")
+    (repo / "src" / "lib").mkdir()
+    (repo / "src" / "lib" / "utils.py").write_text("pass\n")
+
+    # git check-ignore returns non-zero for non-ignored files
+    mock_run.return_value = CompletedProcess(args=[], returncode=1, stdout="", stderr="")
+
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    result = runner.invoke(main, ["tree", "myrepo"])
+    assert result.exit_code == 0, result.output
+    assert "myrepo" in result.output
+    assert "README.md" in result.output
+    assert "src" in result.output
+    # depth 2: lib dir is shown (depth 1 inside src = depth 2 total)
+    assert "lib" in result.output
+    # depth 2: utils.py inside lib is depth 3, should NOT appear
+    assert "utils.py" not in result.output
+
+
+@patch("jam.helpers.run")
+def test_tree_custom_depth(mock_run, tmp_path):
+    """tree -L 1 should only show top-level entries."""
+    repo = tmp_path / "myrepo"
+    (repo / ".git").mkdir(parents=True)
+    (repo / "README.md").write_text("# hello\n")
+    (repo / "src").mkdir()
+    (repo / "src" / "main.py").write_text("pass\n")
+
+    mock_run.return_value = CompletedProcess(args=[], returncode=1, stdout="", stderr="")
+
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    result = runner.invoke(main, ["tree", "myrepo", "-L", "1"])
+    assert result.exit_code == 0, result.output
+    assert "README.md" in result.output
+    assert "src" in result.output
+    # main.py is at depth 2, should not appear with -L 1
+    assert "main.py" not in result.output
+
+
+@patch("jam.helpers.run")
+def test_tree_deep_depth(mock_run, tmp_path):
+    """tree -L 4 should show deeply nested files."""
+    repo = tmp_path / "myrepo"
+    (repo / ".git").mkdir(parents=True)
+    (repo / "src").mkdir()
+    (repo / "src" / "lib").mkdir()
+    (repo / "src" / "lib" / "utils.py").write_text("pass\n")
+
+    mock_run.return_value = CompletedProcess(args=[], returncode=1, stdout="", stderr="")
+
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    result = runner.invoke(main, ["tree", "myrepo", "-L", "4"])
+    assert result.exit_code == 0, result.output
+    assert "utils.py" in result.output
+
+
+@patch("jam.helpers.run")
+def test_tree_excludes_git_dir(mock_run, tmp_path):
+    """tree should never show the .git directory."""
+    repo = tmp_path / "myrepo"
+    (repo / ".git").mkdir(parents=True)
+    (repo / ".git" / "HEAD").write_text("ref: refs/heads/main\n")
+    (repo / "README.md").write_text("# hello\n")
+
+    mock_run.return_value = CompletedProcess(args=[], returncode=1, stdout="", stderr="")
+
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    result = runner.invoke(main, ["tree", "myrepo"])
+    assert result.exit_code == 0, result.output
+    assert ".git" not in result.output
+    assert "HEAD" not in result.output
+
+
+@patch("jam.helpers.run")
+def test_tree_respects_gitignore(mock_run, tmp_path):
+    """tree should hide files that git check-ignore says are ignored."""
+    repo = tmp_path / "myrepo"
+    (repo / ".git").mkdir(parents=True)
+    (repo / "README.md").write_text("# hello\n")
+    (repo / "build").mkdir()
+    (repo / "build" / "output.o").write_text("")
+
+    def check_ignore_side_effect(cmd, **kwargs):
+        if "build" in cmd:
+            return CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+        return CompletedProcess(args=[], returncode=1, stdout="", stderr="")
+
+    mock_run.side_effect = check_ignore_side_effect
+
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    result = runner.invoke(main, ["tree", "myrepo"])
+    assert result.exit_code == 0, result.output
+    assert "README.md" in result.output
+    assert "build" not in result.output
+
+
+@patch("jam.helpers.run")
+def test_tree_connectors(mock_run, tmp_path):
+    """tree should use correct box-drawing connectors."""
+    repo = tmp_path / "myrepo"
+    (repo / ".git").mkdir(parents=True)
+    (repo / "aaa.txt").write_text("")
+    (repo / "zzz.txt").write_text("")
+
+    mock_run.return_value = CompletedProcess(args=[], returncode=1, stdout="", stderr="")
+
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    result = runner.invoke(main, ["tree", "myrepo"])
+    assert result.exit_code == 0, result.output
+    # First item gets ├──, last item gets └──
+    assert "├── aaa.txt" in result.output
+    assert "└── zzz.txt" in result.output
+
+
+@patch("jam.helpers.run")
+def test_tree_empty_repo(mock_run, tmp_path):
+    """tree on a repo with only .git should show just the repo name."""
+    repo = tmp_path / "myrepo"
+    (repo / ".git").mkdir(parents=True)
+
+    mock_run.return_value = CompletedProcess(args=[], returncode=1, stdout="", stderr="")
+
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    result = runner.invoke(main, ["tree", "myrepo"])
+    assert result.exit_code == 0, result.output
+    assert result.output.strip() == "myrepo"
+
+
 # --- copy ---
 
 
