@@ -16,7 +16,7 @@ def jam_emoji():
 
 def run(cmd, **kwargs):
     """Run a shell command and return the result."""
-    return subprocess.run(cmd, shell=True, capture_output=True, text=True, **kwargs)
+    return subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding="utf-8", **kwargs)
 
 
 def get_head(repo_path):

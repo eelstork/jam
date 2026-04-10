@@ -56,7 +56,7 @@ def list_repos(username, token=None):
 def git_in(repo_dir, *args):
     r = subprocess.run(
         ["git", "-C", repo_dir] + list(args),
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8",
     )
     return r.stdout.strip()
 
@@ -106,7 +106,7 @@ def diff_stat(repo_dir, parent, child):
 def clone_repo(clone_url, dest):
     subprocess.run(
         ["git", "clone", "--quiet", clone_url, dest],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8",
     )
 
 
@@ -173,7 +173,7 @@ def resolve_github_credentials():
     if not token:
         try:
             r = subprocess.run(
-                ["gh", "auth", "token"], capture_output=True, text=True,
+                ["gh", "auth", "token"], capture_output=True, text=True, encoding="utf-8",
             )
             if r.returncode == 0 and r.stdout.strip():
                 token = r.stdout.strip()
@@ -184,7 +184,7 @@ def resolve_github_credentials():
     try:
         r = subprocess.run(
             ["gh", "api", "user", "-q", ".login"],
-            capture_output=True, text=True,
+            capture_output=True, text=True, encoding="utf-8",
         )
         if r.returncode == 0 and r.stdout.strip():
             username = r.stdout.strip()
