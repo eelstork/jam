@@ -74,6 +74,13 @@ class _JamGroup(click.Group):
                 helpers.log_command(cmd_name)
             return cmd
 
+        # `jam l<CMD>` → land, then run CMD as a passthrough.
+        if len(cmd_name) >= 2 and cmd_name.startswith("l"):
+            from jam.commands.land_then import make_land_then_command
+
+            helpers.log_command(cmd_name)
+            return make_land_then_command(cmd_name[1:])
+
         # Defer script resolution to the command itself — we don't know
         # yet whether the user is targeting a named repo or the cwd.
         from jam.commands.run_script import make_command

@@ -72,6 +72,12 @@ Target a specific repo with `jam deploy myrepo` — if the second word matches a
 
 Platform-aware: `.sh` is preferred on Linux/Mac, `.ps1` on Windows, `.py` everywhere. Built-in commands always take priority.
 
+### Land-then-run shortcut
+
+`jam l<CMD> REPO [ARGS...]` runs `jam land REPO` first, then the `<CMD>` passthrough on the same repo. Typical use: `jam ldeploy myrepo` lands the latest branch and immediately kicks off `deploy.sh`. If there's nothing to land, the script is skipped and jam exits cleanly; if land fails, the failure propagates and the script is not run. Extra args are forwarded to the script. No `--all` — run per repo.
+
+Because `l` is treated as a prefix, scripts whose name starts with `l` are shadowed by this shortcut.
+
 ## Attribution & Velocity
 
 If you use Claude Code, jam can restore your personal authorship on AI-assisted commits and optionally track coding velocity.

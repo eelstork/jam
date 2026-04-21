@@ -192,6 +192,11 @@ def _land_all():
 
 
 def _land_one(name):
+    """Land the latest branch in the repo named *name* (or cwd if falsy).
+
+    Returns "landed" on success, "nothing" when there's no branch to land.
+    Errors abort the process via helpers.fail.
+    """
     repo_path = helpers.resolve_repo(name or None)
 
     info = _get_landable(repo_path)
@@ -199,7 +204,7 @@ def _land_one(name):
         helpers.fail(info)
     if info is None:
         click.echo(f"No branches to land {helpers.jam_emoji()}")
-        return
+        return "nothing"
 
     branch, commits = info
     local_branch = branch.replace("origin/", "", 1)
@@ -212,3 +217,4 @@ def _land_one(name):
     for c in commits:
         click.echo(f"  {c}")
     click.echo(f"Landed {n} commit{'s' if n != 1 else ''} from {local_branch}.")
+    return "landed"
