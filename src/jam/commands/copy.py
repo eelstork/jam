@@ -34,8 +34,7 @@ def copy(repo, filler, new_name):
     user = helpers.get_gh_user()
 
     # Check new repo doesn't already exist
-    result = helpers.run(f"gh repo view {user}/{new_name}")
-    if result.returncode == 0:
+    if helpers.gh_repo_exists(user, new_name):
         helpers.fail(f"Repo {user}/{new_name} already exists on GitHub.")
 
     dst_path = os.path.join(jam_home, new_name)

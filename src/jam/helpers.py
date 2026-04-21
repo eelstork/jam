@@ -122,6 +122,23 @@ def get_gh_user():
     return result.stdout.strip()
 
 
+def gh_repo_exists(user, name):
+    """Return True iff ``user/name`` resolves to exactly ``user/name`` on GitHub.
+
+    ``gh repo view`` follows GitHub's rename redirects, so a stale name that
+    was renamed to something else still returns exit 0. Compare the returned
+    ``nameWithOwner`` to confirm it matches the query.
+    """
+    result = run(f"gh repo view {user}/{name} --json nameWithOwner")
+    if result.returncode != 0:
+        return False
+    try:
+        data = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return False
+    return data.get("nameWithOwner", "").lower() == f"{user}/{name}".lower()
+
+
 def is_repo(name):
     """Return True if *name* uniquely matches a repo in JAM_HOME."""
     jam_home = get_jam_home()

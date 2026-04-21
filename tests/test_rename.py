@@ -148,15 +148,36 @@ def test_rename_rejects_remote_collision(mock_run, tmp_path):
     _, origin_url = _set_up_repo(tmp_path, "myrepo")
 
     mock_run.side_effect = [
-        ok(origin_url),  # git config
-        ok("testuser"),  # gh api user
-        ok(),            # gh repo view (exists — collision)
+        ok(origin_url),                                      # git config
+        ok("testuser"),                                      # gh api user
+        ok('{"nameWithOwner":"testuser/taken"}'),            # gh repo view (exists — collision)
     ]
 
     runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
     result = runner.invoke(main, ["rename", "myrepo"], input="taken\n")
     assert result.exit_code != 0
     assert "already exists on GitHub" in result.output
+
+
+@patch("os.rename")
+@patch("jam.helpers.run")
+def test_rename_ignores_github_rename_redirect(mock_run, mock_os_rename, tmp_path):
+    """After a prior rename, `gh repo view old-name` resolves (via redirect) to
+    the new name. jam must treat this as 'available', not 'exists'."""
+    _, origin_url = _set_up_repo(tmp_path, "myrepo")
+
+    mock_run.side_effect = [
+        ok(origin_url),                                        # git config
+        ok("testuser"),                                        # gh api user
+        ok('{"nameWithOwner":"testuser/somethingelse"}'),      # gh repo view follows redirect
+        ok(),                                                  # gh repo rename
+        ok(),                                                  # git remote set-url
+    ]
+
+    runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
+    result = runner.invoke(main, ["rename", "myrepo"], input="notes\n")
+    assert result.exit_code == 0, result.output
+    assert "Renamed myrepo to notes" in result.output
 
 
 @patch("jam.helpers.run")

@@ -39,10 +39,28 @@ def test_new_creates_repo(mock_exists, mock_run):
 
 
 @patch("jam.helpers.run")
+@patch("builtins.open", mock_open())
+@patch("os.path.exists", return_value=False)
+def test_new_succeeds_when_gh_view_redirects(mock_exists, mock_run):
+    """If the name was previously used and renamed on GitHub, `gh repo view`
+    follows the redirect. jam must treat the original name as available."""
+    mock_run.side_effect = [
+        ok("testuser"),                                         # gh api user
+        ok('{"nameWithOwner":"testuser/old-notes"}'),           # gh repo view (redirected)
+        ok(),                                                   # gh repo create
+        ok(), ok(), ok(), ok(),
+    ]
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["new", "notes"])
+    assert result.exit_code == 0, result.output
+    assert "Created testuser/notes" in result.output
+
+
+@patch("jam.helpers.run")
 def test_new_fails_when_repo_exists(mock_run):
     mock_run.side_effect = [
-        ok("testuser"),  # gh api user
-        ok(),            # gh repo view (exists — bad)
+        ok("testuser"),                                          # gh api user
+        ok('{"nameWithOwner":"testuser/myrepo"}'),               # gh repo view (exists — bad)
     ]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["new", "myrepo"])
@@ -1174,8 +1192,8 @@ def test_copy_prompts_for_name(mock_run, tmp_path):
 @patch("jam.helpers.match_repo", return_value="myrepo")
 def test_copy_fails_when_target_exists_on_github(mock_match, mock_run):
     mock_run.side_effect = [
-        ok("testuser"),  # gh api user
-        ok(),            # gh repo view (exists — bad)
+        ok("testuser"),                                          # gh api user
+        ok('{"nameWithOwner":"testuser/existing"}'),             # gh repo view (exists — bad)
     ]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["copy", "myrepo", "as", "existing"])

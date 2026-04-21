@@ -14,8 +14,7 @@ def new(name, description, public):
     jam_home = helpers.get_jam_home()
     user = helpers.get_gh_user()
 
-    result = helpers.run(f"gh repo view {user}/{name}")
-    if result.returncode == 0:
+    if helpers.gh_repo_exists(user, name):
         helpers.fail(f"Repo {user}/{name} already exists.")
 
     repo_path = os.path.join(jam_home, name)

@@ -57,8 +57,7 @@ def rename(repo):
         )
 
     user = helpers.get_gh_user()
-    check = helpers.run(f"gh repo view {user}/{new_name}")
-    if check.returncode == 0:
+    if helpers.gh_repo_exists(user, new_name):
         helpers.fail(f"Repo {user}/{new_name} already exists on GitHub.")
 
     result = helpers.run(f"gh repo rename {new_name} --yes", cwd=repo_path)
