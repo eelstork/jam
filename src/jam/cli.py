@@ -29,6 +29,7 @@ from jam.commands.stats import stats
 from jam.commands.prune import prune
 from jam.commands.tree import tree
 from jam.commands.copy import copy
+from jam.commands.rename import rename
 
 
 COMMANDS = [
@@ -58,6 +59,7 @@ COMMANDS = [
     ("prune",    "Delete readme-only repos on GitHub", prune),
     ("tree",     "Show directory tree for a repo",    tree),
     ("copy",     "Copy a repo as a new repo",        copy),
+    ("rename",   "Rename a repo locally and on GitHub", rename),
 ]
 
 
@@ -156,3 +158,4 @@ main.add_command(remain)
 main.add_command(prune)
 main.add_command(tree)
 main.add_command(copy)
+main.add_command(rename)
