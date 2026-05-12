@@ -1,3 +1,4 @@
+import json
 import os
 
 import click
@@ -45,6 +46,62 @@ def _get_landable(repo_path):
         return None
 
     return branch, commits
+
+
+def _get_open_pr(repo_path, branch):
+    """Return the PR number for an open PR on *branch*, or None.
+
+    *branch* may be qualified with the ``origin/`` prefix; we strip it before
+    asking ``gh``. Returns None if ``gh`` isn't available, the repo has no
+    GitHub remote, or no open PR matches.
+    """
+    local = branch.replace("origin/", "", 1)
+    result = helpers.run(
+        f"gh pr list --head {local} --state open --json number",
+        cwd=repo_path,
+    )
+    if result.returncode != 0:
+        return None
+    try:
+        prs = json.loads(result.stdout or "[]")
+    except json.JSONDecodeError:
+        return None
+    if not prs:
+        return None
+    return prs[0].get("number")
+
+
+def _do_land_pr(repo_path, branch, pr_number):
+    """Merge an open PR via gh, sync local main, save breadcrumb.
+
+    Returns True on success, or an error string on failure.
+    """
+    tag = _compute_velocity_tag(repo_path, branch)
+
+    result = helpers.run("git checkout main", cwd=repo_path)
+    if result.returncode != 0:
+        return f"checkout main failed: {result.stderr.strip()}"
+
+    if not _ensure_attribution(repo_path):
+        return "attribution setup failed"
+
+    pre_head = helpers.get_head(repo_path)
+
+    cmd = f"gh pr merge {pr_number} --merge"
+    if tag:
+        local = branch.replace("origin/", "", 1)
+        subject = f"Merge pull request #{pr_number} from {local} {tag}"
+        cmd += f" --subject \"{subject}\""
+    result = helpers.run(cmd, cwd=repo_path)
+    if result.returncode != 0:
+        return f"PR merge failed: {result.stderr.strip()}"
+
+    result = helpers.run("git pull", cwd=repo_path)
+    if result.returncode != 0:
+        return f"sync failed: {result.stderr.strip()}"
+
+    helpers.save_breadcrumb(repo_path, "land", pre_head=pre_head)
+    return True
 
 
 def _compute_velocity_tag(repo_path, branch):
@@ -168,19 +225,26 @@ def _land_all():
     for repo_name, repo_path, branch, commits in targets:
         local_branch = branch.replace("origin/", "", 1)
         click.echo(".", nl=False)
-        result = _do_land(repo_path, branch)
+        pr_number = _get_open_pr(repo_path, branch)
+        if pr_number is not None:
+            result = _do_land_pr(repo_path, branch, pr_number)
+        else:
+            result = _do_land(repo_path, branch)
         if result is True:
-            landed.append((repo_name, local_branch, commits))
+            landed.append((repo_name, local_branch, commits, pr_number))
         else:
             failed.append((repo_name, local_branch, result))
 
     click.echo()  # newline after dots
 
-    for repo_name, local_branch, commits in landed:
+    for repo_name, local_branch, commits, pr_number in landed:
         for c in commits:
             click.echo(f"  {c}")
         n = len(commits)
-        click.echo(f"Landed {n} commit{'s' if n != 1 else ''} from {local_branch} in {repo_name}.")
+        suffix = f" via PR #{pr_number}" if pr_number is not None else ""
+        click.echo(
+            f"Landed {n} commit{'s' if n != 1 else ''} from {local_branch}{suffix} in {repo_name}."
+        )
 
     for repo_name, local_branch, reason in failed:
         click.echo(f"Failed to land {local_branch} in {repo_name}: {reason}")
@@ -210,11 +274,16 @@ def _land_one(name):
     local_branch = branch.replace("origin/", "", 1)
     n = len(commits)
 
-    result = _do_land(repo_path, branch)
+    pr_number = _get_open_pr(repo_path, branch)
+    if pr_number is not None:
+        result = _do_land_pr(repo_path, branch, pr_number)
+    else:
+        result = _do_land(repo_path, branch)
     if result is not True:
         helpers.fail(f"Failed to land {local_branch}: {result}")
 
     for c in commits:
         click.echo(f"  {c}")
-    click.echo(f"Landed {n} commit{'s' if n != 1 else ''} from {local_branch}.")
+    suffix = f" via PR #{pr_number}" if pr_number is not None else ""
+    click.echo(f"Landed {n} commit{'s' if n != 1 else ''} from {local_branch}{suffix}.")
     return "landed"

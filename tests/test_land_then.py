@@ -38,6 +38,7 @@ def test_ldeploy_runs_land_then_script(
         ok(),                   # git fetch
         ok(BRANCHES_OUTPUT),    # git for-each-ref
         ok(COMMITS_OUTPUT),     # git log
+        ok("[]"),               # gh pr list (no open PR)
         ok(),                   # git checkout main
         ok(),                   # git merge
         ok(),                   # git push
@@ -115,6 +116,7 @@ def test_ldeploy_forwards_extra_args(
 
     mock_run.side_effect = [
         ok(), ok(BRANCHES_OUTPUT), ok(COMMITS_OUTPUT),
+        ok("[]"),
         ok(), ok(), ok(),
     ]
     mock_subprocess.return_value = CompletedProcess(args=[], returncode=0)
@@ -154,6 +156,7 @@ def test_ldeploy_script_failure_propagates(
 
     mock_run.side_effect = [
         ok(), ok(BRANCHES_OUTPUT), ok(COMMITS_OUTPUT),
+        ok("[]"),
         ok(), ok(), ok(),
     ]
     mock_subprocess.return_value = CompletedProcess(args=[], returncode=2)
