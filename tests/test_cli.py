@@ -321,6 +321,7 @@ COMMITS_OUTPUT = "abc1234 first commit\ndef5678 second commit\nghi9012 third com
 def test_land_fast(mock_config, mock_isdir, mock_run, mock_head, mock_crumb):
     mock_run.side_effect = [
         ok(),                   # git fetch
+        ok("[]"),               # gh pr list (no open PR)
         ok(BRANCHES_OUTPUT),    # git for-each-ref
         ok(COMMITS_OUTPUT),     # git log
         ok(),                   # git checkout main
@@ -344,6 +345,7 @@ def test_land_fast(mock_config, mock_isdir, mock_run, mock_head, mock_crumb):
 def test_land_no_branches(mock_isdir, mock_run):
     mock_run.side_effect = [
         ok(),                   # git fetch
+        ok("[]"),               # gh pr list (no open PR)
         ok("origin/main\n"),    # git for-each-ref (only main)
     ]
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
@@ -366,10 +368,12 @@ def test_land_all_fast(mock_config, mock_run, mock_head, mock_crumb, tmp_path):
     mock_run.side_effect = [
         # alpha: _get_landable
         ok(),                                       # git fetch
+        ok("[]"),                                   # gh pr list (no open PR)
         ok("origin/feat-a\norigin/main\n"),         # git for-each-ref
         ok("aaa1111 alpha change\n"),                # git log (1 commit)
         # beta: _get_landable
         ok(),                                       # git fetch
+        ok("[]"),                                   # gh pr list (no open PR)
         ok("origin/feat-b\norigin/main\n"),         # git for-each-ref
         ok("bbb2222 beta first\nccc3333 beta second\n"),  # git log (2 commits)
         # alpha: _do_land
@@ -396,6 +400,7 @@ def test_land_all_no_repos(mock_run, tmp_path):
 
     mock_run.side_effect = [
         ok(),                   # git fetch
+        ok("[]"),               # gh pr list (no open PR)
         ok("origin/main\n"),    # only main
     ]
     runner = CliRunner(env={"JAM_HOME": str(tmp_path)})
@@ -424,6 +429,7 @@ def test_land_fetch_failure_shows_reason(mock_isdir, mock_run):
 def test_land_merge_failure_shows_reason(mock_config, mock_isdir, mock_run, mock_head, mock_crumb):
     mock_run.side_effect = [
         ok(),                   # git fetch
+        ok("[]"),               # gh pr list (no open PR)
         ok(BRANCHES_OUTPUT),    # git for-each-ref
         ok(COMMITS_OUTPUT),     # git log
         ok(),                   # git checkout main
@@ -443,6 +449,7 @@ def test_land_merge_failure_shows_reason(mock_config, mock_isdir, mock_run, mock
 def test_land_push_failure_shows_reason(mock_config, mock_isdir, mock_run, mock_head, mock_crumb):
     mock_run.side_effect = [
         ok(),                   # git fetch
+        ok("[]"),               # gh pr list (no open PR)
         ok(BRANCHES_OUTPUT),    # git for-each-ref
         ok(COMMITS_OUTPUT),     # git log
         ok(),                   # git checkout main
@@ -464,6 +471,7 @@ def test_land_csv(mock_config, mock_isdir, mock_run, mock_head, mock_crumb):
     mock_run.side_effect = [
         # first repo (alpha)
         ok(),                   # git fetch
+        ok("[]"),               # gh pr list (no open PR)
         ok(BRANCHES_OUTPUT),    # git for-each-ref
         ok(COMMITS_OUTPUT),     # git log
         ok(),                   # git checkout main
@@ -471,6 +479,7 @@ def test_land_csv(mock_config, mock_isdir, mock_run, mock_head, mock_crumb):
         ok(),                   # git push
         # second repo (beta)
         ok(),                   # git fetch
+        ok("[]"),               # gh pr list (no open PR)
         ok(BRANCHES_OUTPUT),    # git for-each-ref
         ok(COMMITS_OUTPUT),     # git log
         ok(),                   # git checkout main
@@ -481,6 +490,85 @@ def test_land_csv(mock_config, mock_isdir, mock_run, mock_head, mock_crumb):
     result = runner.invoke(main, ["land", "alpha,", "beta"])
     assert result.exit_code == 0
     assert result.output.count("Landed 4 commits from feat-branch") == 2
+
+
+@patch("jam.helpers.save_breadcrumb")
+@patch("jam.helpers.get_head", return_value="abc1234")
+@patch("jam.helpers.run")
+@patch("os.path.isdir", return_value=True)
+@patch("jam.helpers.get_jam_config", return_value=None)
+def test_land_prefers_open_pr(mock_config, mock_isdir, mock_run, mock_head, mock_crumb):
+    mock_run.side_effect = [
+        ok(),                                              # git fetch
+        ok('[{"number": 42, "headRefName": "feat-branch", "title": "Add cool feature", "updatedAt": "2026-05-12T00:00:00Z"}]'),
+        ok(COMMITS_OUTPUT),                                # git log on PR branch
+        ok(),                                              # git checkout main
+        ok(),                                              # gh pr merge
+        ok(),                                              # git pull
+    ]
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["land", "myrepo"])
+    assert result.exit_code == 0, result.output
+    assert "Landed PR #42: Add cool feature" in result.output
+    assert "feat-branch" in result.output
+    cmds = [c.args[0] for c in mock_run.call_args_list]
+    assert any("gh pr merge 42" in c for c in cmds)
+    # When a PR is open we should NOT consult the per-branch listing or run
+    # a local merge -- the PR is the source of truth.
+    assert not any("for-each-ref" in c for c in cmds)
+    assert not any(c.startswith("git merge") for c in cmds)
+
+
+@patch("jam.helpers.save_breadcrumb")
+@patch("jam.helpers.get_head", return_value="abc1234")
+@patch("jam.helpers.run")
+@patch("os.path.isdir", return_value=True)
+@patch("jam.helpers.get_jam_config", return_value=None)
+def test_land_open_pr_wins_over_newer_branch(
+    mock_config, mock_isdir, mock_run, mock_head, mock_crumb,
+):
+    """If a PR is open on an older branch while a newer branch has no PR,
+    the PR still wins.
+    """
+    mock_run.side_effect = [
+        ok(),                                              # git fetch
+        # An open PR on an older branch (not the most recently pushed).
+        ok('[{"number": 5, "headRefName": "old-feature", "title": "Fix bug X", "updatedAt": "2026-05-10T00:00:00Z"}]'),
+        ok("zzz0000 pr commit\n"),                         # git log on PR branch
+        ok(),                                              # git checkout main
+        ok(),                                              # gh pr merge
+        ok(),                                              # git pull
+    ]
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["land", "myrepo"])
+    assert result.exit_code == 0, result.output
+    assert "Landed PR #5: Fix bug X" in result.output
+    assert "old-feature" in result.output
+    cmds = [c.args[0] for c in mock_run.call_args_list]
+    # The newer branch must not be picked up: no for-each-ref consulted.
+    assert not any("for-each-ref" in c for c in cmds)
+    assert any("git log origin/main..origin/old-feature" in c for c in cmds)
+
+
+@patch("jam.helpers.save_breadcrumb")
+@patch("jam.helpers.get_head", return_value="abc1234")
+@patch("jam.helpers.run")
+@patch("os.path.isdir", return_value=True)
+@patch("jam.helpers.get_jam_config", return_value=None)
+def test_land_pr_merge_failure_shows_reason(
+    mock_config, mock_isdir, mock_run, mock_head, mock_crumb,
+):
+    mock_run.side_effect = [
+        ok(),                                              # git fetch
+        ok('[{"number": 7, "headRefName": "feat-branch", "title": "T", "updatedAt": "2026-05-12T00:00:00Z"}]'),
+        ok(COMMITS_OUTPUT),                                # git log on PR branch
+        ok(),                                              # git checkout main
+        err("not mergeable"),                              # gh pr merge fails
+    ]
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["land", "myrepo"])
+    assert result.exit_code != 0
+    assert "PR merge failed" in result.output
 
 
 # --- delete ---
