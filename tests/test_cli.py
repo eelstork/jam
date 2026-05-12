@@ -500,7 +500,7 @@ def test_land_csv(mock_config, mock_isdir, mock_run, mock_head, mock_crumb):
 def test_land_prefers_open_pr(mock_config, mock_isdir, mock_run, mock_head, mock_crumb):
     mock_run.side_effect = [
         ok(),                                              # git fetch
-        ok('[{"number": 42, "headRefName": "feat-branch", "updatedAt": "2026-05-12T00:00:00Z"}]'),
+        ok('[{"number": 42, "headRefName": "feat-branch", "title": "Add cool feature", "updatedAt": "2026-05-12T00:00:00Z"}]'),
         ok(COMMITS_OUTPUT),                                # git log on PR branch
         ok(),                                              # git checkout main
         ok(),                                              # gh pr merge
@@ -509,7 +509,8 @@ def test_land_prefers_open_pr(mock_config, mock_isdir, mock_run, mock_head, mock
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["land", "myrepo"])
     assert result.exit_code == 0, result.output
-    assert "via PR #42" in result.output
+    assert "Landed PR #42: Add cool feature" in result.output
+    assert "feat-branch" in result.output
     cmds = [c.args[0] for c in mock_run.call_args_list]
     assert any("gh pr merge 42" in c for c in cmds)
     # When a PR is open we should NOT consult the per-branch listing or run
@@ -532,7 +533,7 @@ def test_land_open_pr_wins_over_newer_branch(
     mock_run.side_effect = [
         ok(),                                              # git fetch
         # An open PR on an older branch (not the most recently pushed).
-        ok('[{"number": 5, "headRefName": "old-feature", "updatedAt": "2026-05-10T00:00:00Z"}]'),
+        ok('[{"number": 5, "headRefName": "old-feature", "title": "Fix bug X", "updatedAt": "2026-05-10T00:00:00Z"}]'),
         ok("zzz0000 pr commit\n"),                         # git log on PR branch
         ok(),                                              # git checkout main
         ok(),                                              # gh pr merge
@@ -541,7 +542,7 @@ def test_land_open_pr_wins_over_newer_branch(
     runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
     result = runner.invoke(main, ["land", "myrepo"])
     assert result.exit_code == 0, result.output
-    assert "via PR #5" in result.output
+    assert "Landed PR #5: Fix bug X" in result.output
     assert "old-feature" in result.output
     cmds = [c.args[0] for c in mock_run.call_args_list]
     # The newer branch must not be picked up: no for-each-ref consulted.
@@ -559,7 +560,7 @@ def test_land_pr_merge_failure_shows_reason(
 ):
     mock_run.side_effect = [
         ok(),                                              # git fetch
-        ok('[{"number": 7, "headRefName": "feat-branch", "updatedAt": "2026-05-12T00:00:00Z"}]'),
+        ok('[{"number": 7, "headRefName": "feat-branch", "title": "T", "updatedAt": "2026-05-12T00:00:00Z"}]'),
         ok(COMMITS_OUTPUT),                                # git log on PR branch
         ok(),                                              # git checkout main
         err("not mergeable"),                              # gh pr merge fails
