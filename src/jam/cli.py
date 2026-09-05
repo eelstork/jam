@@ -24,6 +24,7 @@ from jam.commands.cooldown import cooldown
 from jam.commands.standup import standup
 from jam.commands.retro import retro
 from jam.commands.remain import remain
+from jam.commands.allow_all import allow_all
 from jam.commands.remix import remix
 from jam.commands.stats import stats
 from jam.commands.prune import prune
@@ -56,6 +57,7 @@ COMMANDS = [
     ("remix",    "Itemize and share CLAUDE.md settings", remix),
     ("stats",    "Show command usage stats",       stats),
     ("remain",   "Fix master/main branch confusion", remain),
+    ("allow-all", "Grant Claude Code broad permissions in all repos", allow_all),
     ("prune",    "Delete readme-only repos on GitHub", prune),
     ("tree",     "Show directory tree for a repo",    tree),
     ("copy",     "Copy a repo as a new repo",        copy),
@@ -155,6 +157,7 @@ main.add_command(retro)
 main.add_command(remix)
 main.add_command(stats)
 main.add_command(remain)
+main.add_command(allow_all)
 main.add_command(prune)
 main.add_command(tree)
 main.add_command(copy)
