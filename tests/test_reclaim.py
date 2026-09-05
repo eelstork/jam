@@ -51,13 +51,9 @@ def test_reclaim_idempotent():
     repo = _make_repo_with_anthropic_commits()
     runner = CliRunner()
 
-    # First run — should reclaim the anthropic commits
-    result = runner.invoke(main, ["reclaim"], input="yes\n", env={
-        "JAM_HOME": tempfile.mkdtemp(),
-    })
-    # reclaim uses git_repo_root() which needs us to be in the repo
-    # so let's invoke with the repo name approach by setting JAM_HOME
-    # Actually, let's just pass the path directly via monkeypatch.
+    # Never invoke reclaim before git_repo_root is patched below: with no
+    # repo name it falls back to the current directory, which under pytest
+    # is the jam checkout itself, and filter-branch would rewrite it.
 
     # Use helpers.run directly to check pre-conditions
     r = subprocess.run(
