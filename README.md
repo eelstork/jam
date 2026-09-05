@@ -45,9 +45,9 @@ Or set the `JAM_HOME` environment variable if you prefer.
 | 🔺`jam rename REPO` | Rename a repo locally and on GitHub. Prompts for the new name. Refuses (without contacting GitHub) if the repo isn't local or if `origin` points at a different name than the local directory. [rename.py](src/jam/commands/rename.py) |
 | 🔷`jam clone NAME` | Clone a repo from your GitHub account into the local jam root. Useful when a repo exists on GitHub but not locally. Also invoked automatically by `jam down NAME` when the repo isn't found locally. [clone.py](src/jam/commands/clone.py) |
 | 🟡`jam list` | See what you've got. `--info` pulls the first line from each readme. [list.py](src/jam/commands/list.py) |
-| 🔺`jam up "MESSAGE"` | Add everything, commit, push. One shot. `--name REPO` to target a specific repo, `--force` if you need it. [up.py](src/jam/commands/up.py) |
+| 🔺`jam up "MESSAGE"` | Add everything, commit, push. One shot. `--name REPO` to target a specific repo, `--force` if you need it. If the push is rejected because the branch is behind the remote, jam pulls and retries once. [up.py](src/jam/commands/up.py) |
 | 🔷`jam down [NAME]` | Pull latest. If the repo isn't local, delegates to `jam clone`. `--force` throws away local changes first. [down.py](src/jam/commands/down.py) |
-| 🔺`jam land [NAME]` | Merge the most recent branch into main and show all landed commits. `--all` lands across all repos at once. [land.py](src/jam/commands/land.py) |
+| 🔺`jam land [NAME]` | Merge the most recent branch into main and show all landed commits. `--all` lands across all repos at once. If the push is rejected because main is behind the remote, jam pulls and retries once. [land.py](src/jam/commands/land.py) |
 | 🔷`jam undo [NAME]` | Reverse the last jam command on a repo. Works with `up`, `down`, and `land`. [undo.py](src/jam/commands/undo.py) |
 | 🔷`jam delete NAME` | Remove a repo locally. Tags the remote for later cleanup. Re-clone from GitHub to recover. [delete.py](src/jam/commands/delete.py) |
 | 🔷`jam prune` | Interactively select and delete repos that only contain a README. Scans jam home, multi-select with arrow keys and x, removes local copies. [prune.py](src/jam/commands/prune.py) |

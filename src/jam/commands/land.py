@@ -169,7 +169,7 @@ def _ensure_attribution(repo_path):
         return False
     # Push if ensure_repo_claude_settings made a commit
     if helpers.get_head(repo_path) != pre_head:
-        push = helpers.run("git push", cwd=repo_path)
+        push = helpers.push(repo_path)
         if push.returncode != 0:
             click.echo(f"Attribution push failed: {push.stderr.strip()}")
             return False
@@ -201,7 +201,7 @@ def _do_land(repo_path, branch):
     if result.returncode != 0:
         return f"merge failed: {result.stderr.strip()}"
 
-    result = helpers.run("git push", cwd=repo_path)
+    result = helpers.push(repo_path)
     if result.returncode != 0:
         return f"push failed: {result.stderr.strip()}"
 

@@ -165,6 +165,105 @@ def test_up_prompts_for_message(mock_isdir, mock_is_repo, mock_run, mock_head, m
     mock_run.assert_any_call('git commit -m "my commit msg"', cwd="/tmp/dev/myrepo")
 
 
+# --- push (pull-and-retry when the branch is behind) ---
+
+
+@patch("jam.helpers.run")
+def test_push_succeeds_without_pull(mock_run):
+    mock_run.side_effect = [ok()]
+    result = helpers.push("/repo")
+    assert result.returncode == 0
+    mock_run.assert_called_once_with("git push", cwd="/repo")
+
+
+@patch("jam.helpers.run")
+def test_push_passes_extra_args(mock_run):
+    mock_run.side_effect = [ok()]
+    helpers.push("/repo", "--force")
+    mock_run.assert_called_once_with("git push --force", cwd="/repo")
+
+
+@patch("jam.helpers.run")
+def test_push_pulls_and_retries_when_behind(mock_run):
+    rejected = err(
+        "! [rejected]        main -> main (fetch first)\n"
+        "error: failed to push some refs\n"
+        "hint: Updates were rejected because the remote contains work that "
+        "you do not have locally."
+    )
+    mock_run.side_effect = [rejected, ok(), ok()]
+    result = helpers.push("/repo")
+    assert result.returncode == 0
+    assert mock_run.call_args_list == [
+        call("git push", cwd="/repo"),
+        call("git pull --no-rebase --no-edit", cwd="/repo"),
+        call("git push", cwd="/repo"),
+    ]
+
+
+@patch("jam.helpers.run")
+def test_push_non_fast_forward_also_triggers_pull(mock_run):
+    mock_run.side_effect = [
+        err("! [rejected] main -> main (non-fast-forward)"),
+        ok(),
+        ok(),
+    ]
+    result = helpers.push("/repo")
+    assert result.returncode == 0
+    mock_run.assert_any_call("git pull --no-rebase --no-edit", cwd="/repo")
+
+
+@patch("jam.helpers.run")
+def test_push_does_not_pull_on_unrelated_rejection(mock_run):
+    # A protected branch / declined hook is "rejected" too, but pulling won't
+    # help -- jam must surface it, not loop.
+    mock_run.side_effect = [
+        err(
+            "remote: error: GH006: Protected branch update failed for "
+            "refs/heads/main.\n ! [remote rejected] main -> main "
+            "(protected branch hook declined)"
+        )
+    ]
+    result = helpers.push("/repo")
+    assert result.returncode == 1
+    mock_run.assert_called_once_with("git push", cwd="/repo")
+
+
+@patch("jam.helpers.run")
+def test_push_returns_pull_failure_when_pull_conflicts(mock_run):
+    mock_run.side_effect = [
+        err("! [rejected] main -> main (non-fast-forward)"),
+        err("CONFLICT (content): Merge conflict in f\nAutomatic merge failed"),
+    ]
+    result = helpers.push("/repo")
+    assert result.returncode == 1
+    assert "CONFLICT" in result.stderr
+    # Only the first push was attempted; no retry after a failed pull.
+    pushes = [c for c in mock_run.call_args_list if c == call("git push", cwd="/repo")]
+    assert len(pushes) == 1
+
+
+@patch("jam.helpers.save_breadcrumb")
+@patch("jam.helpers.get_head", return_value="abc1234")
+@patch("jam.helpers.run")
+@patch("jam.helpers.is_repo", return_value=True)
+@patch("os.path.isdir", return_value=True)
+def test_up_pulls_and_retries_when_behind(mock_isdir, mock_is_repo, mock_run, mock_head, mock_crumb):
+    mock_run.side_effect = [
+        ok(stdout=" M file.txt"),            # git status --porcelain
+        ok(),                                # git add -A
+        ok(),                                # git commit
+        err("main -> main (fetch first)"),   # git push -> rejected (behind)
+        ok(),                                # git pull --no-rebase --no-edit
+        ok(),                                # git push (retry)
+    ]
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["up", "myrepo", "fix stuff"])
+    assert result.exit_code == 0, result.output
+    assert "Pushed" in result.output
+    mock_run.assert_any_call("git pull --no-rebase --no-edit", cwd="/tmp/dev/myrepo")
+
+
 # --- down ---
 
 
@@ -460,6 +559,30 @@ def test_land_push_failure_shows_reason(mock_config, mock_isdir, mock_run, mock_
     result = runner.invoke(main, ["land", "myrepo"])
     assert result.exit_code != 0
     assert "push failed" in result.output
+
+
+@patch("jam.helpers.save_breadcrumb")
+@patch("jam.helpers.get_head", return_value="abc1234")
+@patch("jam.helpers.run")
+@patch("os.path.isdir", return_value=True)
+@patch("jam.helpers.get_jam_config", return_value=None)
+def test_land_pulls_and_retries_when_behind(mock_config, mock_isdir, mock_run, mock_head, mock_crumb):
+    mock_run.side_effect = [
+        ok(),                                       # git fetch
+        ok("[]"),                                   # gh pr list (no open PR)
+        ok(BRANCHES_OUTPUT),                        # git for-each-ref
+        ok(COMMITS_OUTPUT),                         # git log
+        ok(),                                       # git checkout main
+        ok(),                                       # git merge
+        err("main -> main (non-fast-forward)"),     # git push -> rejected (behind)
+        ok(),                                       # git pull --no-rebase --no-edit
+        ok(),                                       # git push (retry)
+    ]
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["land", "myrepo"])
+    assert result.exit_code == 0, result.output
+    assert "Landed 4 commits from feat-branch" in result.output
+    mock_run.assert_any_call("git pull --no-rebase --no-edit", cwd="/tmp/dev/myrepo")
 
 
 @patch("jam.helpers.save_breadcrumb")

@@ -48,7 +48,7 @@ def up(args, force):
             helpers.fail(f"git commit failed: {result.stderr.strip()}")
 
     force_flag = "--force" if force else ""
-    result = helpers.run(f"git push {force_flag}", cwd=repo_path)
+    result = helpers.push(repo_path, force_flag)
     if result.returncode != 0:
         helpers.fail(f"git push failed: {result.stderr.strip()}")
 

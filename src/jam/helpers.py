@@ -27,6 +27,53 @@ def get_head(repo_path):
     return result.stdout.strip()
 
 
+# Markers git prints when a push is rejected only because the branch is behind
+# its remote (the "hint: Updates were rejected because the tip of your current
+# branch is behind ..." message). We match these specific non-fast-forward /
+# fetch-first phrases rather than a bare "rejected": a protected branch or a
+# declined pre-receive hook is also "rejected", but pulling wouldn't help.
+_PUSH_BEHIND_MARKERS = (
+    "non-fast-forward",
+    "fetch first",
+    "tip of your current branch is behind",
+    "remote contains work that you do not have",
+)
+
+
+def _push_rejected_behind(result):
+    """True when a failed ``git push`` was rejected only for being behind."""
+    if result.returncode == 0:
+        return False
+    text = f"{result.stdout}\n{result.stderr}".lower()
+    return any(marker in text for marker in _PUSH_BEHIND_MARKERS)
+
+
+def push(repo_path, args=""):
+    """``git push``, pulling once and retrying if rejected for being behind.
+
+    Landing (or ``jam up``-ing) onto a branch that someone -- often the same
+    user on another machine -- has pushed to in the meantime gets the familiar
+    non-fast-forward rejection. The fix is always the same: pull, then push
+    again. Do it automatically instead of making the user do it by hand.
+
+    Returns the CompletedProcess of the final git command run: the push that
+    succeeded, or -- if integrating the remote changes itself failed (e.g. a
+    merge conflict) -- that failed ``git pull``, so callers report a truthful
+    reason. Any push failure that isn't a behind rejection (auth, a protected
+    branch, a declined hook) is returned as-is, without pulling.
+    """
+    cmd = f"git push {args}".strip()
+    result = run(cmd, cwd=repo_path)
+    if not _push_rejected_behind(result):
+        return result
+
+    click.echo("Push rejected (branch behind); pulling, then retrying.")
+    pull = run("git pull --no-rebase --no-edit", cwd=repo_path)
+    if pull.returncode != 0:
+        return pull
+    return run(cmd, cwd=repo_path)
+
+
 def _breadcrumb_path(repo_path):
     return os.path.join(repo_path, ".git", "jam-undo.json")
 
