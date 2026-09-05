@@ -6,6 +6,7 @@ import click
 from jam import helpers
 
 SCHEMA_URL = "https://json.schemastore.org/claude-code-settings.json"
+SETTINGS_REL = os.path.join(".claude", "settings.json")
 
 # Tool-level rules: a bare tool name allows every call to that tool.
 # Bash covers every shell command, the file tools cover the whole repo,
@@ -31,7 +32,7 @@ ALLOW_ALL_RULES = [
 
 
 def _settings_path(repo_path):
-    return os.path.join(repo_path, ".claude", "settings.json")
+    return os.path.join(repo_path, SETTINGS_REL)
 
 
 def _load_settings(repo_path):
@@ -49,13 +50,6 @@ def _save_settings(repo_path, settings):
     ordered.update(settings)
     with open(path, "w") as f:
         json.dump(ordered, f, indent=2)
-
-
-def _is_clean(repo_path):
-    """Return True if the repo has no staged or unstaged changes."""
-    staged = helpers.run("git diff --cached --quiet", cwd=repo_path)
-    unstaged = helpers.run("git diff --quiet", cwd=repo_path)
-    return staged.returncode == 0 and unstaged.returncode == 0
 
 
 def _has_rules(repo_path):
@@ -89,6 +83,85 @@ def _remove_rules(repo_path):
     _save_settings(repo_path, settings)
 
 
+def _reason(result):
+    """One line explaining a failed git command.
+
+    Prefer what the server said (``remote:`` lines, minus hints), then the
+    first ``fatal:``/``error:`` line, then whatever git printed last.
+    """
+    lines = [l.strip() for l in (result.stderr + "\n" + result.stdout).splitlines()]
+    lines = [l for l in lines if l]
+    remote = [l[len("remote:"):].strip() for l in lines if l.startswith("remote:")]
+    remote = [l for l in remote if l and not l.lower().startswith("hint")]
+    if remote:
+        return remote[0]
+    for l in lines:
+        if l.startswith(("fatal:", "error:")):
+            return l
+    return lines[-1] if lines else f"exit {result.returncode}"
+
+
+def _current_branch(repo_path):
+    result = helpers.run("git branch --show-current", cwd=repo_path)
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
+def _settings_dirty(repo_path):
+    """True if .claude/settings.json has staged or unstaged changes."""
+    result = helpers.run(f"git status --porcelain -- {SETTINGS_REL}", cwd=repo_path)
+    return bool(result.stdout.strip())
+
+
+def _unpushed_count(repo_path):
+    """Commits ahead of upstream, or None if there is no upstream."""
+    result = helpers.run("git rev-list --count @{u}..HEAD", cwd=repo_path)
+    if result.returncode != 0:
+        return None
+    return int(result.stdout.strip() or 0)
+
+
+def _apply(repo_path, unset):
+    """Run the workflow on one repo. Returns (status, detail).
+
+    status is "done" (nothing to do), "ok" (changed and pushed), or
+    "skip" (left untouched; detail says why).
+    """
+    has = _has_rules(repo_path)
+    needs_work = has if unset else not has
+    if not needs_work:
+        return "done", ""
+
+    branch = _current_branch(repo_path)
+    if branch != "main":
+        return "skip", f"on branch {branch or '(detached)'}, not main"
+
+    if _settings_dirty(repo_path):
+        return "skip", f"{SETTINGS_REL} has uncommitted changes"
+
+    pull = helpers.run("git pull --ff-only", cwd=repo_path)
+    if pull.returncode != 0:
+        return "skip", f"pull failed: {_reason(pull)}"
+
+    ahead = _unpushed_count(repo_path)
+    if ahead is None:
+        return "skip", "no upstream branch"
+    if ahead:
+        return "skip", f"{ahead} unpushed commit{'s' if ahead != 1 else ''}, push those first"
+
+    (_remove_rules if unset else _add_rules)(repo_path)
+    action = "remove" if unset else "add"
+    helpers.run(f"git add {SETTINGS_REL}", cwd=repo_path)
+    commit = helpers.run(f'git commit -m "{action} allow-all permissions"', cwd=repo_path)
+    if commit.returncode != 0:
+        return "skip", f"commit failed: {_reason(commit)}"
+
+    push = helpers.push(repo_path)
+    if push.returncode != 0:
+        return "skip", f"push failed (commit is local): {_reason(push)}"
+
+    return "ok", ""
+
+
 @click.command("allow-all")
 @click.option("--unset", is_flag=True, help="Remove the allow-all rules from all repos.")
 def allow_all(unset):
@@ -101,50 +174,28 @@ def allow_all(unset):
         if os.path.isdir(os.path.join(repo_path, ".git")):
             repos.append((entry, repo_path))
 
-    # Classify: needs work vs already done.
-    # For --unset, "needs work" means has the rules; for set, means lacks them.
-    done = []
-    todo = []
-    dirty = []
-    for entry, repo_path in repos:
-        click.echo(".", nl=False)
-        has = _has_rules(repo_path)
-        needs_work = has if unset else not has
-        if not needs_work:
-            done.append(entry)
-        elif _is_clean(repo_path):
-            todo.append(entry)
-        else:
-            dirty.append(entry)
-
-    if repos:
-        click.echo()  # newline after dots
-
-    if dirty:
-        click.echo(
-            f"Aborted: {', '.join(dirty)} "
-            f"{'has' if len(dirty) == 1 else 'have'} uncommitted changes. "
-            "Please commit or stash first."
-        )
-        raise SystemExit(1)
-
-    action = "remove" if unset else "add"
-    modify = _remove_rules if unset else _add_rules
-    for entry, repo_path in repos:
-        if entry in done:
-            continue
-        modify(repo_path)
-        settings_rel = os.path.join(".claude", "settings.json")
-        helpers.run(f"git add {settings_rel}", cwd=repo_path)
-        helpers.run(f'git commit -m "{action} allow-all permissions"', cwd=repo_path)
-        helpers.run("git push", cwd=repo_path)
-
     verb = "Removed" if unset else "Added"
+    done = []
+    changed = []
+    skipped = []
+    for entry, repo_path in repos:
+        status, detail = _apply(repo_path, unset)
+        if status == "done":
+            done.append(entry)
+        elif status == "ok":
+            changed.append(entry)
+            click.echo(f"{entry}: {verb.lower()}")
+        else:
+            skipped.append(entry)
+            click.echo(f"{entry}: skipped, {detail}")
+
     prep = "from" if unset else "to"
     click.echo(
-        f"{verb} allow-all permissions {prep} {len(todo)} "
-        f"repo{'s' if len(todo) != 1 else ''}."
+        f"{verb} allow-all permissions {prep} {len(changed)} "
+        f"repo{'s' if len(changed) != 1 else ''}."
     )
     if done:
         label = "Already removed" if unset else "Already installed"
         click.echo(f"{label}: {', '.join(done)}")
+    if skipped:
+        click.echo(f"Skipped: {', '.join(skipped)}")
