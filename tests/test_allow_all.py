@@ -303,6 +303,59 @@ def test_allow_all_one_bad_repo_does_not_stop_others(tmp_path):
     assert "Added allow-all permissions to 1 repo." in result.output
 
 
+def test_allow_all_single_repo(tmp_path):
+    """NAME limits the run to that repo; the others are left alone."""
+    (tmp_path / "alpha" / ".git").mkdir(parents=True)
+    (tmp_path / "beta" / ".git").mkdir(parents=True)
+
+    result, cmds = _invoke(tmp_path, "beta")
+    assert result.exit_code == 0, result.output
+    assert "beta: added" in result.output
+    assert "alpha" not in result.output
+    assert "Added allow-all permissions to 1 repo." in result.output
+    assert (tmp_path / "beta" / ".claude" / "settings.json").exists()
+    assert not (tmp_path / "alpha" / ".claude").exists()
+    assert all(str(tmp_path / "beta") in str(c) or "cwd" not in str(c) for c in cmds)
+
+
+def test_allow_all_single_repo_prefix_match(tmp_path):
+    (tmp_path / "my-project" / ".git").mkdir(parents=True)
+    (tmp_path / "other" / ".git").mkdir(parents=True)
+
+    result, _ = _invoke(tmp_path, "my-p")
+    assert result.exit_code == 0, result.output
+    assert "my-project: added" in result.output
+    assert not (tmp_path / "other" / ".claude").exists()
+
+
+def test_allow_all_single_repo_unknown(tmp_path):
+    (tmp_path / "alpha" / ".git").mkdir(parents=True)
+
+    result, _ = _invoke(tmp_path, "zzz")
+    assert result.exit_code != 0
+    assert "not found" in result.output
+    assert not (tmp_path / "alpha" / ".claude").exists()
+
+
+def test_allow_all_single_repo_not_git(tmp_path):
+    (tmp_path / "plain").mkdir()
+
+    result, _ = _invoke(tmp_path, "plain")
+    assert result.exit_code != 0
+    assert "not a git repo" in result.output
+
+
+def test_allow_all_single_repo_unset(tmp_path):
+    for n in ("alpha", "beta"):
+        (tmp_path / n / ".git").mkdir(parents=True)
+        _install(str(tmp_path / n))
+
+    result, _ = _invoke(tmp_path, "alpha", "--unset")
+    assert "alpha: removed" in result.output
+    assert "permissions" not in _read(tmp_path, "alpha")
+    assert set(ALLOW_ALL_RULES) <= set(_read(tmp_path, "beta")["permissions"]["allow"])
+
+
 # --unset tests
 
 
