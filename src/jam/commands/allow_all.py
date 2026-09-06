@@ -163,16 +163,27 @@ def _apply(repo_path, unset):
 
 
 @click.command("allow-all")
-@click.option("--unset", is_flag=True, help="Remove the allow-all rules from all repos.")
-def allow_all(unset):
-    """Grant Claude Code broad tool permissions across all repos."""
+@click.argument("name", required=False)
+@click.option("--unset", is_flag=True, help="Remove the allow-all rules instead.")
+def allow_all(name, unset):
+    """Grant Claude Code broad tool permissions across all repos.
+
+    With NAME, only that repo is processed (prefix matching applies).
+    """
     jam_home = helpers.get_jam_home()
 
-    repos = []
-    for entry in sorted(os.listdir(jam_home)):
-        repo_path = os.path.join(jam_home, entry)
-        if os.path.isdir(os.path.join(repo_path, ".git")):
-            repos.append((entry, repo_path))
+    if name:
+        name = helpers.match_repo(name)
+        repo_path = os.path.join(jam_home, name)
+        if not os.path.isdir(os.path.join(repo_path, ".git")):
+            helpers.fail(f"{name} is not a git repo.")
+        repos = [(name, repo_path)]
+    else:
+        repos = []
+        for entry in sorted(os.listdir(jam_home)):
+            repo_path = os.path.join(jam_home, entry)
+            if os.path.isdir(os.path.join(repo_path, ".git")):
+                repos.append((entry, repo_path))
 
     verb = "Removed" if unset else "Added"
     done = []
