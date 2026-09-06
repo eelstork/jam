@@ -8,27 +8,32 @@ from jam import helpers
 SCHEMA_URL = "https://json.schemastore.org/claude-code-settings.json"
 SETTINGS_REL = os.path.join(".claude", "settings.json")
 
-# Tool-level rules: a bare tool name allows every call to that tool.
-# Bash covers every shell command, the file tools cover the whole repo,
-# and the web/agent/skill tools stop asking for confirmation.
+# Tool-level rules: a bare tool name allows every call to that tool, and a
+# bare MCP server name allows every tool that server exposes. Bash covers
+# every shell command; the file tools cover the whole repo; the web, agent
+# and skill tools stop asking; mcp__github covers PRs, issues and repos in
+# web sessions, mcp__Claude_Code_Remote the session/routine tools there.
 ALLOW_ALL_RULES = [
     "Bash",
     "Read",
     "Edit",
     "Write",
-    "MultiEdit",
     "NotebookEdit",
     "Glob",
     "Grep",
-    "LS",
     "WebFetch",
     "WebSearch",
-    "Task",
     "Agent",
     "Skill",
-    "TodoWrite",
-    "TodoRead",
+    "mcp__github",
+    "mcp__Claude_Code_Remote",
 ]
+
+# Names earlier versions of this command wrote that no longer exist as
+# tools (LS and TodoRead were removed, Task became Agent, MultiEdit folded
+# into Edit, TodoWrite became the Task* tools). Harmless but misleading, so
+# they are pruned whenever the rules are (re)applied.
+STALE_RULES = ["LS", "Task", "TodoRead", "TodoWrite", "MultiEdit"]
 
 
 def _settings_path(repo_path):
@@ -53,19 +58,22 @@ def _save_settings(repo_path, settings):
 
 
 def _has_rules(repo_path):
-    """Return True if every allow-all rule is already present."""
+    """True if every allow-all rule is present and no stale one lingers."""
     allow = _load_settings(repo_path).get("permissions", {}).get("allow", [])
-    return all(rule in allow for rule in ALLOW_ALL_RULES)
+    return all(rule in allow for rule in ALLOW_ALL_RULES) and not any(
+        rule in allow for rule in STALE_RULES
+    )
 
 
 def _add_rules(repo_path):
     """Merge the allow-all rules into a repo's permissions.allow list."""
     settings = _load_settings(repo_path)
     permissions = settings.setdefault("permissions", {})
-    allow = permissions.setdefault("allow", [])
+    allow = [r for r in permissions.get("allow", []) if r not in STALE_RULES]
     for rule in ALLOW_ALL_RULES:
         if rule not in allow:
             allow.append(rule)
+    permissions["allow"] = allow
     _save_settings(repo_path, settings)
 
 
@@ -73,7 +81,10 @@ def _remove_rules(repo_path):
     """Strip the allow-all rules, leaving any other allow entries intact."""
     settings = _load_settings(repo_path)
     permissions = settings.get("permissions", {})
-    allow = [r for r in permissions.get("allow", []) if r not in ALLOW_ALL_RULES]
+    allow = [
+        r for r in permissions.get("allow", [])
+        if r not in ALLOW_ALL_RULES and r not in STALE_RULES
+    ]
     if allow:
         permissions["allow"] = allow
     else:

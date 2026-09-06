@@ -297,14 +297,17 @@ def write_repo_claude_settings(repo_path):
     git_email = _git_user_email(cwd=repo_path)
     settings["attribution"]["commit"] = git_name
     settings["attribution"]["pr"] = git_name
-    # Add SessionStart hook to configure git identity
+    # Add SessionStart hook to configure git identity. --global because a
+    # web session opened on a folder holding several repos has no repo at
+    # its cwd, and a plain `git config` there fails with "not in a git
+    # directory", leaving commits attributed to Claude.
     settings["hooks"] = {
         "SessionStart": [
             {
                 "hooks": [
                     {
                         "type": "command",
-                        "command": f'git config user.name "{git_name}" && git config user.email "{git_email}"',
+                        "command": f'git config --global user.name "{git_name}" && git config --global user.email "{git_email}"',
                     }
                 ]
             }
