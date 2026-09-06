@@ -6,7 +6,7 @@ from unittest.mock import patch
 from click.testing import CliRunner
 
 from jam.cli import main
-from jam.commands.allow_all import ALLOW_ALL_RULES
+from jam.commands.allow_all import ALLOW_ALL_RULES, STALE_RULES
 
 
 def ok(stdout=""):
@@ -80,8 +80,37 @@ def test_allow_all_adds_rules_to_repos(tmp_path):
 
 
 def test_allow_all_covers_core_tools():
-    for rule in ("Bash", "Read", "Edit", "Write", "WebFetch"):
+    for rule in ("Bash", "Read", "Edit", "Write", "WebFetch", "mcp__github"):
         assert rule in ALLOW_ALL_RULES
+    assert not set(ALLOW_ALL_RULES) & set(STALE_RULES)
+
+
+def test_allow_all_prunes_stale_rules(tmp_path):
+    """Repos written by an earlier version lose the tool names that no longer exist."""
+    repo = tmp_path / "repo"
+    (repo / ".git").mkdir(parents=True)
+    (repo / ".claude").mkdir()
+    old = ["Bash(npm *)", "Bash", "LS", "Task", "TodoRead", "Read"]
+    with open(repo / ".claude" / "settings.json", "w") as f:
+        json.dump({"permissions": {"allow": old}}, f)
+
+    result, _ = _invoke(tmp_path)
+    assert "repo: added" in result.output
+
+    allow = _read(tmp_path, "repo")["permissions"]["allow"]
+    assert allow[0] == "Bash(npm *)"
+    assert not set(allow) & set(STALE_RULES)
+    assert set(allow) == {"Bash(npm *)", *ALLOW_ALL_RULES}
+
+
+def test_allow_all_not_done_while_stale_rules_linger(tmp_path):
+    (tmp_path / "repo" / ".git").mkdir(parents=True)
+    _install(str(tmp_path / "repo"), extra_allow=["LS"])
+
+    result, cmds = _invoke(tmp_path)
+    assert "repo: added" in result.output
+    assert any("git commit" in c for c in cmds)
+    assert "LS" not in _read(tmp_path, "repo")["permissions"]["allow"]
 
 
 def test_allow_all_idempotent(tmp_path):
