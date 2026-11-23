@@ -27,4 +27,20 @@ def down(ctx, name, force):
         helpers.fail(f"git pull failed: {result.stderr.strip()}")
 
     helpers.save_breadcrumb(repo_path, "down", pre_head=pre_head)
-    click.echo("Pulled.")
+    _report_pulled(repo_path, pre_head)
+
+
+def _report_pulled(repo_path, pre_head):
+    """Say what the pull brought in: a commit count and the commit list."""
+    post_head = helpers.get_head(repo_path)
+    if post_head == pre_head:
+        click.echo("Pulled (0 commits, already up to date).")
+        return
+
+    rng = f"{pre_head}..{post_head}" if pre_head else post_head
+    log = helpers.run(f"git log --oneline {rng}", cwd=repo_path)
+    lines = log.stdout.strip().splitlines() if log.returncode == 0 else []
+    n = len(lines)
+    click.echo(f"Pulled ({n} commit{'' if n == 1 else 's'}):")
+    for line in lines:
+        click.echo(f"  {line}")

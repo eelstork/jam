@@ -280,6 +280,65 @@ def test_down_with_name(mock_isdir, mock_is_repo, mock_run, mock_head, mock_crum
     assert "Pulled" in result.output
     mock_run.assert_any_call("git pull", cwd="/tmp/dev/myrepo")
     mock_crumb.assert_called_once_with("/tmp/dev/myrepo", "down", pre_head="abc1234")
+    assert "Pulled (0 commits" in result.output
+
+
+@patch("jam.helpers.save_breadcrumb")
+@patch("jam.helpers.get_head", side_effect=["abc1234", "def5678"])
+@patch("jam.helpers.run")
+@patch("jam.helpers.is_repo", return_value=True)
+@patch("os.path.isdir", return_value=True)
+def test_down_lists_pulled_commits(mock_isdir, mock_is_repo, mock_run, mock_head, mock_crumb):
+    mock_run.side_effect = [
+        ok(),                                               # git pull
+        ok("def5678 second thing\nbcd2345 first thing\n"),  # git log
+    ]
+    runner = CliRunner(env={"JAM_HOME": "/tmp/dev"})
+    result = runner.invoke(main, ["down", "myrepo"])
+    assert result.exit_code == 0, result.output
+    assert "Pulled (2 commits):" in result.output
+    assert "def5678 second thing" in result.output
+    assert "bcd2345 first thing" in result.output
+    mock_run.assert_any_call("git log --oneline abc1234..def5678", cwd="/tmp/dev/myrepo")
+
+
+def test_down_real_git_lists_commits(tmp_path):
+    """Against a real bare remote: pulled commits are counted and listed."""
+    import subprocess
+
+    def git(cmd, cwd):
+        subprocess.run(f"git -c commit.gpgsign=false {cmd}", shell=True, cwd=cwd,
+                       check=True, capture_output=True)
+
+    remote = tmp_path / "remote.git"
+    git(f"init --bare -b main {remote}", tmp_path)
+    home = tmp_path / "home"
+    home.mkdir()
+    other = tmp_path / "other"
+    git(f"clone {remote} {home / 'myrepo'}", tmp_path)
+    git(f"clone {remote} {other}", tmp_path)
+    for d in (home / "myrepo", other):
+        git("config user.email t@t", d)
+        git("config user.name t", d)
+    git("commit --allow-empty -m base", other)
+    git("push -u origin main", other)
+    git("pull origin main", home / "myrepo")
+    git("branch -u origin/main", home / "myrepo")
+
+    runner = CliRunner(env={"JAM_HOME": str(home)})
+    result = runner.invoke(main, ["down", "myrepo"])
+    assert result.exit_code == 0, result.output
+    assert "Pulled (0 commits" in result.output
+
+    git("commit --allow-empty -m 'upstream one'", other)
+    git("commit --allow-empty -m 'upstream two'", other)
+    git("push", other)
+    with patch("jam.helpers.save_breadcrumb"):
+        result = runner.invoke(main, ["down", "myrepo"])
+    assert result.exit_code == 0, result.output
+    assert "Pulled (2 commits):" in result.output
+    assert "upstream one" in result.output
+    assert "upstream two" in result.output
 
 
 @patch("jam.helpers.save_breadcrumb")
